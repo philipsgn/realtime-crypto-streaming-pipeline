@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+
+# Env
+.env
+
+# Data
+/tmp/
+*.parquet
+checkpoint/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes (local)
+postgres_data/
+grafana_data/
+
+# Hadoop binaries
+.hadoop/

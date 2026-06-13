@@ -1,0 +1,84 @@
+"""
+Stage 1 — Ingestion
+Binance WebSocket → Apache Kafka producer
+
+Connects to Binance public WebSocket stream (no API key required).
+Publishes raw trade events to Kafka topic: crypto-trades
+"""
+
+import asyncio
+import json
+import os
+import logging
+from datetime import datetime
+
+import websockets
+from kafka import KafkaProducer
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
+
+# ── Config ────────────────────────────────────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_TOPIC             = os.getenv("KAFKA_TOPIC", "crypto-trades")
+SYMBOLS                 = os.getenv("SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT").split(",")
+
+STREAM_NAMES    = "/".join([f"{s.lower()}@trade" for s in SYMBOLS])
+BINANCE_WS_URL  = f"wss://stream.binance.com:9443/stream?streams={STREAM_NAMES}"
+
+
+def create_producer() -> KafkaProducer:
+    return KafkaProducer(
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        linger_ms=100,
+        batch_size=16384,
+        compression_type="gzip",
+    )
+
+
+def parse_trade_event(raw: dict) -> dict:
+    """Transform raw Binance event → our schema."""
+    data = raw.get("data", raw)
+    return {
+        "symbol":         data["s"],
+        "price":          float(data["p"]),
+        "quantity":       float(data["q"]),
+        "trade_time":     data["T"],
+        "trade_time_iso": datetime.utcfromtimestamp(data["T"] / 1000).isoformat(),
+        "is_buyer_maker": data["m"],
+        "trade_id":       data["t"],
+    }
+
+
+async def stream_to_kafka(producer: KafkaProducer) -> None:
+    log.info(f"Connecting to Binance WebSocket | symbols: {SYMBOLS}")
+
+    async with websockets.connect(BINANCE_WS_URL, ping_interval=20) as ws:
+        log.info("WebSocket connected. Streaming to Kafka...")
+        event_count = 0
+
+        async for message in ws:
+            raw   = json.loads(message)
+            event = parse_trade_event(raw)
+            producer.send(KAFKA_TOPIC, value=event, key=event["symbol"].encode())
+
+            event_count += 1
+            if event_count % 100 == 0:
+                log.info(f"Published {event_count} events | latest: {event['symbol']} @ {event['price']}")
+
+
+def main() -> None:
+    producer = create_producer()
+    log.info("Kafka producer ready.")
+    try:
+        asyncio.run(stream_to_kafka(producer))
+    except KeyboardInterrupt:
+        log.info("Shutting down...")
+    finally:
+        producer.flush()
+        producer.close()
+
+
+if __name__ == "__main__":
+    main()

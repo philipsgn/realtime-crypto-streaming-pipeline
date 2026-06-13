@@ -1,0 +1,13 @@
+apiVersion: 1
+datasources:
+  - name: TimescaleDB
+    type: postgres
+    url: postgres:5432
+    database: crypto_pipeline
+    user: pipeline
+    secureJsonData:
+      password: changeme
+    jsonData:
+      sslmode: disable
+      timescaledb: true
+    isDefault: true
