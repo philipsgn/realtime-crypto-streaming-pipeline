@@ -2,10 +2,10 @@
 name: crypto-pipeline
 description: >
   Load this skill whenever the user asks about the Real-Time Crypto Streaming Pipeline project.
-  Covers architecture, all 4 stages, tech stack, machine constraints, and code patterns.
+  Covers architecture, all 8 stages of the roadmap, tech stack, machine constraints, and code patterns.
   Trigger keywords: kafka, spark, binance, websocket, crypto, pipeline, stage, producer,
-  streaming, timescaledb, grafana, vwap, window aggregation, docker compose, data engineer.
-version: "1.0"
+  streaming, timescaledb, grafana, vwap, window aggregation, dbt, airflow, gemini, docker compose, data engineer.
+version: "1.1"
 author: project-owner
 references:
   - references/PROJECT_CONTEXT.md
@@ -13,6 +13,10 @@ references:
   - references/STAGE_2_PROCESSING.md
   - references/STAGE_3_STORAGE.md
   - references/STAGE_4_DASHBOARD_DEPLOY.md
+  - references/STAGE_5_DBT_TRANSFORMATION.md
+  - references/STAGE_6_AIRFLOW_ORCHESTRATION.md
+  - references/STAGE_7_AI_MARKET_SUMMARY.md
+  - references/STAGE_8_AWS_MIGRATION.md
 ---
 
 # Skill: crypto-pipeline
@@ -37,6 +41,9 @@ realtime-crypto-streaming-pipeline/
 ├── ingestion/binance_producer.py    ← Stage 1
 ├── processing/spark_streaming.py   ← Stage 2
 ├── storage/postgres_sink.py        ← Stage 3
+├── dbt/                             ← Stage 5: Bronze/Silver/Gold
+├── dags/                            ← Stage 6: Airflow DAGs
+├── ai/                              ← Stage 7: Gemini summary
 ├── dashboard/grafana/              ← Stage 4
 ├── infrastructure/docker-compose.yml
 ├── docs/PROJECT_CONTEXT.md         ← Context đầy đủ
@@ -50,14 +57,16 @@ Kafka KRaft   : 350MB
 PySpark local : 512MB
 TimescaleDB   : 256MB
 Grafana       : 200MB
+Airflow (standalone): 300MB
+dbt run       : ~50MB
 Python scripts: ~100MB
 ```
 
 ### Stack không được thay đổi
 
-Kafka ✓ | PySpark ✓ | TimescaleDB ✓ | Grafana ✓ | Binance WebSocket ✓
+Kafka ✓ | PySpark ✓ | TimescaleDB ✓ | Grafana ✓ | Binance WebSocket ✓ | dbt ✓ | Airflow ✓ | Gemini ✓
 
-❌ Không dùng: Zookeeper, Flink, Redpanda, Superset, mock data
+❌ Không dùng: Zookeeper, Flink, Redpanda, Superset, mock data, Claude/OpenAI API
 
 ## Đọc thêm
 

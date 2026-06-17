@@ -12,7 +12,7 @@ targeting a Data Engineer Intern position in Ho Chi Minh City, Vietnam.
 
 - **Owner experience:** Beginner DE, strong Python basics
 - **Goal:** Impress recruiters — not perfect production code
-- **Timeline:** 4 weeks (1 stage per week)
+- **Timeline:** 5-day roadmap (Day 1-5), documentation-first before implementation
 - **Real data only:** Binance WebSocket API, NO mock/simulated data ever
 
 ---
@@ -26,6 +26,11 @@ targeting a Data Engineer Intern position in Ho Chi Minh City, Vietnam.
 5. **NEVER exceed 1.5GB RAM in suggestions** — machine has only ~2GB free RAM
 6. **ALWAYS use Python `os.getenv()`** for config — never hardcode credentials
 7. **ALWAYS check RAM impact** before suggesting new Docker services
+8. **Airflow standalone mode only — no Celery executor (RAM constraint)**
+9. **dbt models read from TimescaleDB, never bypass Spark sink**
+10. **AI summary stage uses GOOGLE GEMINI API (gemini-2.5-flash) ONLY — never Claude API or OpenAI API — this stage must remain $0 cost**
+11. **AWS migration: single EC2 instance for Kafka+Spark+PostgreSQL, NOT RDS — RDS has no free TimescaleDB and bills after 12 months**
+12. **Before implementing any AWS step, confirm it fits within Free Tier limits (EC2 750hrs/mo, S3 5GB, Grafana Cloud free tier) — flag any paid-tier requirement before writing code**
 
 ---
 
@@ -46,6 +51,8 @@ OS   : Windows with Docker Desktop
 | PySpark | 512MB | `spark.driver.memory=512m` |
 | PostgreSQL/TimescaleDB | 256MB | Docker deploy limit |
 | Grafana | 200MB | Docker deploy limit |
+| Airflow standalone | ~300MB | Docker deploy limit |
+| dbt | ~50MB run footprint | CLI process only |
 | Python scripts | ~100MB each | — |
 
 ---
@@ -57,7 +64,10 @@ Language    : Python 3.10+
 Ingestion   : websockets==12.0, kafka-python==2.0.2
 Queue       : Apache Kafka 3.7 (KRaft, NO Zookeeper)
 Processing  : PySpark 3.5 Structured Streaming, local[2] mode
+Transformation: dbt Core (Bronze/Silver/Gold)
 Storage     : TimescaleDB (PostgreSQL 16), Parquet (local → S3 later)
+Orchestration: Apache Airflow 2.9 (standalone mode only)
+AI          : Google Gemini API (gemini-2.5-flash, free tier)
 Dashboard   : Grafana 10.4
 Infra       : Docker Compose
 CI/CD       : GitHub Actions (ruff + mypy)
@@ -122,6 +132,11 @@ Update this section as you complete each stage:
 
 | Stage | Status | Completed |
 |---|---|---|
+| Day 1 — Observability UI | ✅ Completed | Docker UI visibility added |
+| Day 2 — dbt Transformation | 🔲 Not started | — |
+| Day 3 — Airflow Orchestration | 🔲 Not started | — |
+| Day 4 — AI Market Summary | 🔲 Not started | — |
+| Day 5 — AWS Migration | 🔲 Not started | — |
 | Stage 1 — Ingestion | 🔲 Not started | — |
 | Stage 2 — Processing | 🔲 Not started | — |
 | Stage 3 — Storage | 🔲 Not started | — |

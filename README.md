@@ -14,6 +14,20 @@ This project builds a **production-grade real-time data pipeline** that ingests 
 
 ---
 
+## Roadmap (5 Days)
+
+The project now extends beyond the original four stages with a lightweight 5-day roadmap for documentation and planning:
+
+- **Day 1 — Observability UI (Done)**: add Kafdrop and pgAdmin so Kafka topics/messages and TimescaleDB data are visible in the browser.
+- **Day 2 — dbt Transformation Layer**: build Bronze → Silver → Gold models for clean metrics and daily rollups.
+- **Day 3 — Airflow Orchestration**: run dbt hourly and monitor Kafka lag with lightweight DAGs.
+- **Day 4 — AI Market Summary**: use Google Gemini free tier to generate 5-minute market summaries into PostgreSQL.
+- **Day 5 — AWS Migration**: run Kafka + Spark + PostgreSQL on one EC2 Free Tier instance, store Parquet in S3, and expose Grafana via Grafana Cloud.
+
+> This roadmap is intended for planning first. The implementation work for Days 2–5 will come after documentation review.
+
+---
+
 ## Architecture
 
 ```
@@ -32,6 +46,9 @@ Spark Structured Streaming (PySpark)
         ├──▶ PostgreSQL (TimescaleDB extension)
         │      serving layer — Grafana reads here
         │
+        ├──▶ dbt models (Bronze / Silver / Gold)
+        │      clean metrics and rollups for analytics
+        │
         └──▶ Local Parquet files
                historical storage — full raw events
                       │
@@ -49,10 +66,14 @@ Spark Structured Streaming (PySpark)
 | Ingestion | Python `websockets` | Connect to Binance WebSocket stream |
 | Message Queue | Apache Kafka (KRaft) | Buffer & decouple producer/consumer |
 | Stream Processing | PySpark Structured Streaming | Window aggregation, VWAP computation |
+| Transformation | dbt Core | Bronze / Silver / Gold modeling |
 | Serving DB | PostgreSQL + TimescaleDB | Time-series optimized storage |
 | Historical Storage | Parquet (local / S3-ready) | Full raw event archive |
+| Orchestration | Apache Airflow 2.9 (standalone) | Run dbt and monitoring DAGs |
+| AI Layer | Google Gemini API (`gemini-2.5-flash`) | Generate free market summaries |
 | Dashboard | Grafana | Real-time visualization |
-| Orchestration | Docker Compose | Single-command local deployment |
+| Cloud | AWS EC2 + S3 + Grafana Cloud | Cost-optimized deployment path |
+| Infra | Docker Compose | Single-command local deployment |
 | CI/CD | GitHub Actions | Linting, type check on push |
 
 ---
@@ -133,6 +154,9 @@ make producer
 
 # 5. Open Grafana
 open http://localhost:3000   # admin / admin
+# 6. Open observability UIs
+# - Kafdrop (Kafka UI): http://localhost:9000
+# - pgAdmin (Postgres UI): http://localhost:5050  — default: admin@crypto.com / admin
 ```
 
 ### Make commands
@@ -158,6 +182,12 @@ realtime-crypto-streaming-pipeline/
 │   └── spark_streaming.py       # PySpark Structured Streaming job
 ├── storage/
 │   └── postgres_sink.py         # TimescaleDB write helpers
+├── dbt/
+│   └── models/                   # Bronze / Silver / Gold transformation
+├── dags/
+│   └── airflow/                  # Airflow DAGs for orchestration
+├── ai/
+│   └── gemini_summary.py         # Market summary script using Gemini API
 ├── dashboard/
 │   └── grafana/
 │       ├── datasource.yml        # Grafana datasource provisioning

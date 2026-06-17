@@ -36,9 +36,13 @@ Xây dựng một **end-to-end streaming data pipeline** xử lý dữ liệu gi
 Ingestion   : Python (websockets, kafka-python) → Binance WebSocket API
 Queue       : Apache Kafka 3.7 (KRaft mode, không dùng Zookeeper)
 Processing  : PySpark 3.5 Structured Streaming (local[2] mode)
+Transformation: dbt Core (Bronze / Silver / Gold)
 Storage     : PostgreSQL + TimescaleDB (hypertable), Parquet (local → S3)
+Orchestration: Apache Airflow 2.9 (standalone mode)
+AI          : Google Gemini API (gemini-2.5-flash, free tier)
 Dashboard   : Grafana 10.4
-Orchestration: Docker Compose
+Cloud       : AWS EC2 + S3 + Grafana Cloud (Free Tier only)
+Infra       : Docker Compose
 CI/CD       : GitHub Actions (ruff lint, mypy type check)
 ```
 
@@ -84,14 +88,31 @@ CI/CD       : GitHub Actions (ruff lint, mypy type check)
         │    Tables: trade_metrics_1min, trade_metrics_5min
         │    Hypertable on: window_start
         │
-        └──▶ [Parquet files — local]
-             Partition: date/symbol
-             (S3 khi deploy lên cloud)
-                    │
-                    ▼
-             [Grafana Dashboard]
-             Auto-refresh: 10s
-             Panels: BTC price, VWAP, volume bar, trade heatmap
+        ├──▶ [Parquet files — local]
+        │     Partition: date/symbol
+        │     (S3 khi deploy lên cloud)
+        │
+        └──▶ [dbt models — Bronze / Silver / Gold]
+               Bronze: raw metrics from TimescaleDB
+               Silver: clean + validate
+               Gold: hourly/daily rollups
+                      │
+                      ▼
+               [Apache Airflow — DAGs]
+               DAG 1: dbt run hourly
+               DAG 2: Kafka lag health check every 5 min
+               DAG 3: daily summary report
+                      │
+                      ▼
+               [AI summary job]
+               Query Gold tables every 5 min
+               Call Gemini API (gemini-2.5-flash)
+               Save to market_summaries
+                      │
+                      ▼
+               [Grafana Dashboard]
+               Auto-refresh: 10s / 5 min text panel
+               Panels: BTC price, VWAP, volume bar, AI summary
 ```
 
 ---
@@ -107,6 +128,12 @@ realtime-crypto-streaming-pipeline/
 ├── storage/
 │   ├── postgres_sink.py         # Stage 3: TimescaleDB helpers
 │   └── init.sql                 # Stage 3: Schema + hypertable DDL
+├── dbt/
+│   └── models/                   # Stage 5: Bronze / Silver / Gold models
+├── dags/
+│   └── airflow/                  # Stage 6: DAGs for orchestration
+├── ai/
+│   └── gemini_summary.py         # Stage 7: Gemini-based summaries
 ├── dashboard/
 │   └── grafana/provisioning/    # Stage 4: Datasource + dashboard as code
 ├── infrastructure/
@@ -117,7 +144,11 @@ realtime-crypto-streaming-pipeline/
 │       ├── STAGE_1_INGESTION.md
 │       ├── STAGE_2_PROCESSING.md
 │       ├── STAGE_3_STORAGE.md
-│       └── STAGE_4_DASHBOARD_DEPLOY.md
+│       ├── STAGE_4_DASHBOARD_DEPLOY.md
+│       ├── STAGE_5_DBT_TRANSFORMATION.md
+│       ├── STAGE_6_AIRFLOW_ORCHESTRATION.md
+│       ├── STAGE_7_AI_MARKET_SUMMARY.md
+│       └── STAGE_8_AWS_MIGRATION.md
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -142,14 +173,15 @@ realtime-crypto-streaming-pipeline/
 
 ---
 
-## 7. Lộ trình 4 tuần
+## 7. Lộ trình 5 ngày
 
-| Tuần | Stage | Mục tiêu cuối tuần | File chi tiết |
+| Ngày | Stage | Mục tiêu cuối ngày | File chi tiết |
 |---|---|---|---|
-| 1 | Ingestion | Binance WebSocket → Kafka chạy được, thấy event vào topic | STAGE_1_INGESTION.md |
-| 2 | Processing | Spark job đọc Kafka, tính VWAP, in ra console | STAGE_2_PROCESSING.md |
-| 3 | Storage | Metrics ghi vào TimescaleDB, Parquet lưu raw | STAGE_3_STORAGE.md |
-| 4 | Dashboard + Deploy | Grafana dashboard live, deploy Oracle/AWS | STAGE_4_DASHBOARD_DEPLOY.md |
+| 1 | Observability UI | Kafdrop + pgAdmin chạy được, thấy topic và data thật | STAGE_1_INGESTION.md |
+| 2 | dbt Transformation | Bronze/Silver/Gold models chạy được trên TimescaleDB | STAGE_5_DBT_TRANSFORMATION.md |
+| 3 | Airflow Orchestration | DAGs chạy dbt + health check Kafka lag | STAGE_6_AIRFLOW_ORCHESTRATION.md |
+| 4 | AI Market Summary | Gemini summary lưu vào `market_summaries` và hiển thị Grafana | STAGE_7_AI_MARKET_SUMMARY.md |
+| 5 | AWS Migration | EC2 + S3 + Grafana Cloud free tier, có budget alert | STAGE_8_AWS_MIGRATION.md |
 
 ---
 
@@ -185,7 +217,7 @@ Gợi ý theo thứ tự ưu tiên:
 
 | Thuật ngữ | Ý nghĩa trong context này |
 |---|---|
-| "stage" | Một trong 4 giai đoạn: Ingestion, Processing, Storage, Dashboard |
+| "stage" | Một trong các giai đoạn của roadmap: Ingestion, Processing, Storage, Dashboard, dbt, Airflow, AI, AWS |
 | "event" | Một giao dịch crypto từ Binance (JSON object) |
 | "window" | Khoảng thời gian Spark gom events để tính metrics (1 min / 5 min) |
 | "VWAP" | Volume-Weighted Average Price — giá trung bình có tính đến khối lượng |
@@ -193,3 +225,7 @@ Gợi ý theo thứ tự ưu tiên:
 | "KRaft" | Kafka Raft — mode Kafka chạy không cần Zookeeper (từ Kafka 3.3+) |
 | "watermark" | Ngưỡng thời gian Spark chờ late data trước khi finalize window |
 | "sink" | Nơi Spark ghi output (PostgreSQL, Parquet, console...) |
+| "Bronze/Silver/Gold" | Lớp dữ liệu medallion: raw → clean → analytics-ready |
+| "DAG" | Directed Acyclic Graph — workflow định nghĩa task chạy theo thứ tự |
+| "lag" | Khoảng chênh lệch giữa tốc độ sản xuất và tiêu thụ của Kafka consumer |
+| "Free Tier" | Gói miễn phí cho cloud services, thường có giới hạn và cảnh báo chi phí |
