@@ -10,12 +10,12 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:9093,CONTROLLER://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9094
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
@@ -24,7 +24,7 @@ services:
         limits:
           memory: 400m
     healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--list"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -61,7 +61,7 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./dashboard/grafana/provisioning:/etc/grafana/provisioning
+      - ../dashboard/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,15 +73,19 @@ services:
   kafdrop:
     image: obsidiandynamics/kafdrop:3.30.0
     container_name: kafdrop
-    network_mode: "host"
+    depends_on:
+      - kafka
+    ports:
+      - "9000:9000"
     environment:
-      KAFKA_BROKERCONNECT: localhost:9092
+      KAFKA_BROKERCONNECT: kafka:9093
       SERVER_PORT: "9000"
       JVM_OPTS: "-Xms64m -Xmx128m"
     deploy:
       resources:
         limits:
           memory: 200m
+    restart: unless-stopped
 
   pgadmin:
     image: dpage/pgadmin4:latest

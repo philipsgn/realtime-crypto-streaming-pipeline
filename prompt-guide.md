@@ -54,3 +54,9 @@ EC2 t2.micro (free) — chạy Kafka + Spark thay Docker local
 S3 bucket — lưu Parquet thay local files
 RDS PostgreSQL free tier — thay TimescaleDB local
 Grafana Cloud free — public dashboard URL cho CV
+
+Notice for run Docker :
+docker compose -f infrastructure/docker-compose.yml up -d
+docker compose -f infrastructure/docker-compose.yml up -d postgres grafana
+docker compose -f infrastructure/docker-compose.yml ps
+docker logs grafana --tail 100

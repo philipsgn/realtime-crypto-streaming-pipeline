@@ -1,6 +1,7 @@
 apiVersion: 1
 datasources:
-  - name: TimescaleDB
+  - uid: timescaledb
+    name: TimescaleDB
     type: postgres
     url: postgres:5432
     database: crypto_pipeline

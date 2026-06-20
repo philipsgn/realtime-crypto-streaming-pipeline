@@ -11,3 +11,5 @@ SQLAlchemy==2.0.25
 
 # Utils
 python-dotenv==1.0.0
+
+certifi
