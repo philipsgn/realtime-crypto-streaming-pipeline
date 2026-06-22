@@ -1,0 +1,7 @@
+version: 2
+
+sources:
+  - name: crypto_pipeline
+    schema: public
+    tables:
+      - name: trade_metrics_1min

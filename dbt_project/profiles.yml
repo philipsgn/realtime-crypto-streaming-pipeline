@@ -1,0 +1,12 @@
+crypto_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: "{{ env_var('POSTGRES_USER', 'pipeline') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'changeme') }}"
+      port: 5433
+      dbname: "{{ env_var('POSTGRES_DB', 'crypto_pipeline') }}"
+      schema: public
+      threads: 4

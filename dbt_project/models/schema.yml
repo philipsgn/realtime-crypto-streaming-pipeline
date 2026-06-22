@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: silver_trades
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+      - name: vwap
+        tests:
+          - not_null
+
+  - name: gold_hourly_vwap
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+      - name: hourly_vwap
+        tests:
+          - not_null
+
+  - name: gold_daily_summary
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+      - name: daily_vwap
+        tests:
+          - not_null

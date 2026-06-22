@@ -159,6 +159,17 @@ open http://localhost:3000   # admin / admin
 # - pgAdmin (Postgres UI): http://localhost:5050  — default: admin@crypto.com / admin
 ```
 
+### How to run dbt
+
+To run the dbt transformations (Bronze, Silver, Gold layers) against the TimescaleDB database:
+
+```bash
+cd dbt_project
+dbt deps --profiles-dir .
+dbt run --profiles-dir .
+dbt test --profiles-dir .
+```
+
 ### Make commands
 
 ```bash
