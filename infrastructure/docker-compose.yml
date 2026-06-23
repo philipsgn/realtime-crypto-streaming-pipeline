@@ -1,4 +1,4 @@
-﻿version: "3.8"
+version: "3.8"
 
 services:
 
@@ -46,7 +46,7 @@ services:
         limits:
           memory: 256m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pipeline}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pipeline} -d ${POSTGRES_DB:-crypto_pipeline}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,6 +103,46 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: crypto-airflow:2.9.0
+    container_name: airflow
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pipeline:changeme@postgres:5432/crypto_pipeline
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      AIRFLOW__WEBSERVER__WORKERS: 1
+      AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: 600
+      AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: 600
+      AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 0
+      GUNICORN_CMD_ARGS: "--timeout 600 --graceful-timeout 600 --worker-tmp-dir /dev/shm"
+      PYTHONWARNINGS: "ignore"
+      AIRFLOW__CORE__PARALLELISM: 1
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9093"
+      POSTGRES_HOST: "postgres"
+      POSTGRES_PORT: "5432"
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../dbt_project:/opt/airflow/dbt_project
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    command: standalone
 
 volumes:
   postgres_data:

@@ -16,3 +16,6 @@ certifi
 
 # Transformation
 dbt-postgres
+
+# Orchestration
+apache-airflow==2.9.0

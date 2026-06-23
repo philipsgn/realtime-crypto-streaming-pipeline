@@ -170,6 +170,16 @@ dbt run --profiles-dir .
 dbt test --profiles-dir .
 ```
 
+### How to run Airflow
+
+To run the Airflow standalone container and view DAGs:
+
+```bash
+docker compose -f infrastructure/docker-compose.yml up -d airflow
+```
+- Access Airflow UI: http://localhost:8080
+- Credentials: `admin` / `admin`
+
 ### Make commands
 
 ```bash

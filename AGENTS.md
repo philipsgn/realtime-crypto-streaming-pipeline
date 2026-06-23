@@ -32,6 +32,7 @@ targeting a Data Engineer Intern position in Ho Chi Minh City, Vietnam.
 11. **AWS migration: single EC2 instance for Kafka+Spark+PostgreSQL, NOT RDS — RDS has no free TimescaleDB and bills after 12 months**
 12. **Before implementing any AWS step, confirm it fits within Free Tier limits (EC2 750hrs/mo, S3 5GB, Grafana Cloud free tier) — flag any paid-tier requirement before writing code**
 13. **dbt models read from TimescaleDB only via Silver/Gold layers — Grafana queries Gold tables, never queries trade_metrics_1min directly going forward**
+14. **Airflow standalone/LocalExecutor only, max 300MB — never suggest CeleryExecutor or KubernetesExecutor for this project**
 
 ---
 
@@ -135,7 +136,7 @@ Update this section as you complete each stage:
 |---|---|---|
 | Day 1 — Observability UI | ✅ Completed | Docker UI visibility added |
 | Day 2 — dbt Transformation | ✅ Completed | Bronze/Silver/Gold models added |
-| Day 3 — Airflow Orchestration | 🔲 Not started | — |
+| Day 3 — Airflow Orchestration | ✅ Completed | DAGs added, Airflow containerized |
 | Day 4 — AI Market Summary | 🔲 Not started | — |
 | Day 5 — AWS Migration | 🔲 Not started | — |
 | Stage 1 — Ingestion | 🔲 Not started | — |

@@ -1,0 +1,20 @@
+# Stage Day 3 — Airflow Orchestration
+# File: infrastructure/Dockerfile.airflow
+#
+# Custom Airflow image with all project dependencies pre-installed.
+# Uninstalls heavy Azure/Microsoft providers that cause thousands of SyntaxWarnings
+# on Python 3.12, which blocks Gunicorn worker startup and causes master timeout.
+
+FROM apache/airflow:2.9.0
+
+USER airflow
+
+# 1. Remove the massive azure synapse provider (~50MB, 40k+ lines of broken code on py3.12)
+#    This is the root cause of "No response from gunicorn master within 600 seconds"
+RUN pip uninstall -y apache-airflow-providers-microsoft-azure || true
+
+# 2. Pre-install project dependencies at build time
+RUN pip install --no-cache-dir \
+    kafka-python-ng==2.2.2 \
+    dbt-postgres==1.7.9 \
+    psycopg2-binary==2.9.9
