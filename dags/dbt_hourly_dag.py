@@ -3,9 +3,10 @@ Run dbt models (Bronze, Silver, Gold) hourly.
 Schedule: @hourly
 """
 import os
+from datetime import datetime, timedelta
+
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from datetime import datetime, timedelta
 
 default_args = {
     'owner': 'airflow',
@@ -27,5 +28,18 @@ with DAG(
     # Airflow container mounts dbt_project at /opt/airflow/dbt_project
     run_dbt = BashOperator(
         task_id='run_dbt_models',
-        bash_command='cd /opt/airflow/dbt_project && dbt deps && dbt run && dbt test',
+        bash_command=(
+            'cd /opt/airflow/dbt_project && '
+            'dbt deps --profiles-dir . && '
+            'dbt run --profiles-dir . && '
+            'dbt test --profiles-dir .'
+        ),
+        env={
+            'POSTGRES_HOST': os.getenv('POSTGRES_HOST', 'postgres'),
+            'POSTGRES_PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'POSTGRES_DB': os.getenv('POSTGRES_DB', 'crypto_pipeline'),
+            'POSTGRES_USER': os.getenv('POSTGRES_USER', 'pipeline'),
+            'POSTGRES_PASSWORD': os.getenv('POSTGRES_PASSWORD', 'changeme'),
+        },
+        append_env=True,
     )

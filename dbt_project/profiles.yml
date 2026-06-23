@@ -3,10 +3,10 @@ crypto_pipeline:
   outputs:
     dev:
       type: postgres
-      host: localhost
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
       user: "{{ env_var('POSTGRES_USER', 'pipeline') }}"
       password: "{{ env_var('POSTGRES_PASSWORD', 'changeme') }}"
-      port: 5433
+      port: "{{ env_var('POSTGRES_PORT', '5433') | int }}"
       dbname: "{{ env_var('POSTGRES_DB', 'crypto_pipeline') }}"
       schema: public
       threads: 4
