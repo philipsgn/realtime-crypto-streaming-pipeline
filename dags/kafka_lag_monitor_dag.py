@@ -51,8 +51,9 @@ def check_kafka_lag():
         else:
             log.info(f"Kafka lag is normal: {total_lag}")
             
-    except Exception as e:
-        log.error(f"Error checking Kafka lag: {e}")
+    except Exception:
+        log.exception("Error checking Kafka lag")
+        raise
 
 with DAG(
     'kafka_lag_monitor_dag',

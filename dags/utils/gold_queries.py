@@ -38,7 +38,8 @@ def fetch_daily_summary() -> list:
             with conn.cursor() as cur:
                 cur.execute(query)
                 summaries = cur.fetchall()
-    except Exception as e:
-        log.error(f"Database query failed: {e}")
+    except Exception:
+        log.exception("Database query failed")
+        raise
         
     return summaries

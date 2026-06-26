@@ -23,7 +23,7 @@ def log_daily_summary():
     summaries = fetch_daily_summary()
     
     if not summaries:
-        log.warning("No daily summary data found. Check if gold_daily_summary table is populated.")
+        log.warning("no data for yesterday")
         return
         
     log.info("=== DAILY CRYPTO MARKET SUMMARY ===")

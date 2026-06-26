@@ -32,7 +32,7 @@ targeting a Data Engineer Intern position in Ho Chi Minh City, Vietnam.
 11. **AWS migration: single EC2 instance for Kafka+Spark+PostgreSQL, NOT RDS — RDS has no free TimescaleDB and bills after 12 months**
 12. **Before implementing any AWS step, confirm it fits within Free Tier limits (EC2 750hrs/mo, S3 5GB, Grafana Cloud free tier) — flag any paid-tier requirement before writing code**
 13. **dbt models read from TimescaleDB only via Silver/Gold layers — Grafana queries Gold tables, never queries trade_metrics_1min directly going forward**
-14. **Airflow standalone/LocalExecutor only, max 300MB — never suggest CeleryExecutor or KubernetesExecutor for this project**
+14. **Airflow standalone/LocalExecutor only, max 768MB — never suggest CeleryExecutor or KubernetesExecutor for this project**
 
 ---
 
@@ -53,9 +53,11 @@ OS   : Windows with Docker Desktop
 | PySpark | 512MB | `spark.driver.memory=512m` |
 | PostgreSQL/TimescaleDB | 256MB | Docker deploy limit |
 | Grafana | 200MB | Docker deploy limit |
-| Airflow standalone | ~300MB | Docker deploy limit |
+| Airflow standalone | 768MB | Docker deploy limit |
 | dbt | ~50MB run footprint | CLI process only |
 | Python scripts | ~100MB each | — |
+
+Note: the earlier 300MB Airflow estimate was too low because webserver gunicorn workers each need ~100-150MB, and LocalExecutor still runs scheduler, webserver, and executor overhead. A 600MB limit was tested but Airflow standalone was OOMKilled during startup, so the local limit is 768MB.
 
 ---
 
