@@ -22,3 +22,23 @@ SELECT create_hypertable('trade_metrics_5min', 'window_start', if_not_exists => 
 
 CREATE INDEX IF NOT EXISTS idx_1min_symbol ON trade_metrics_1min (symbol, window_start DESC);
 CREATE INDEX IF NOT EXISTS idx_5min_symbol ON trade_metrics_5min (symbol, window_start DESC);
+
+-- Day 4: transparent AI and degraded-mode market summaries.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'summary_source') THEN
+        CREATE TYPE summary_source AS ENUM ('gemini', 'fallback_template');
+    END IF;
+END
+$$;
+
+CREATE TABLE IF NOT EXISTS market_summaries (
+    id           BIGSERIAL      PRIMARY KEY,
+    symbol       TEXT           NOT NULL,
+    summary_text TEXT           NOT NULL,
+    source       summary_source NOT NULL,
+    created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_summaries_symbol_created
+    ON market_summaries (symbol, created_at DESC);

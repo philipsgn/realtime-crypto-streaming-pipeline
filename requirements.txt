@@ -19,3 +19,6 @@ dbt-postgres
 
 # Orchestration
 apache-airflow==2.9.0
+
+# AI summary resilience
+tenacity==8.2.3

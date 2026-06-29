@@ -18,7 +18,7 @@ Sau khi Gold layer có dữ liệu VWAP, volume, price change, project có thể
 
 ```
 [Gold tables / analytics query]
-        │  mỗi 5 phút
+        │  mỗi 30 phút
         ▼
 [AI summary script]
   query VWAP, volume, price change
@@ -29,8 +29,8 @@ Sau khi Gold layer có dữ liệu VWAP, volume, price change, project có thể
   lưu latest summary + timestamp
         │
         ▼
-[Grafana Text panel]
-  auto-refresh mỗi 5 phút
+[Grafana summary panel]
+  auto-refresh mỗi 30 phút
 ```
 
 ---
@@ -51,7 +51,7 @@ Sau khi Gold layer có dữ liệu VWAP, volume, price change, project có thể
 ### Bước 1 — Cài dependency
 
 ```bash
-pip install python-dotenv google-genai
+pip install python-dotenv tenacity
 ```
 
 ### Bước 2 — Cấu hình API key
@@ -67,7 +67,7 @@ GEMINI_API_KEY=your_free_api_key_here
 ### Bước 3 — Chạy script summary
 
 ```bash
-python ai/gemini_summary.py
+python -m ai.gemini_summary
 ```
 
 ### Bước 4 — Verify kết quả
@@ -98,9 +98,9 @@ python ai/gemini_summary.py
 | Lỗi | Nguyên nhân | Cách fix |
 |---|---|---|
 | `API key not found` | Chưa set `GEMINI_API_KEY` | Check `.env` và `python-dotenv` |
-| `429 Too Many Requests` | Gọi quá nhanh hoặc quota bị giới hạn | Thêm retry/backoff logic |
+| `429 Too Many Requests` | Gọi quá nhanh hoặc quota bị giới hạn | Retry 3 lần với backoff 2s, 4s, 8s rồi dùng template fallback |
 | `Table market_summaries does not exist` | Chưa chạy migration schema | Tạo table trước khi chạy script |
-| `Grafana không refresh` | Panel chưa set auto-refresh | Cấu hình 5 phút refresh |
+| `Grafana không refresh` | Panel chưa set auto-refresh | Cấu hình 30 phút refresh |
 
 ---
 
@@ -108,7 +108,7 @@ python ai/gemini_summary.py
 
 - [ ] Script chạy được mà không lỗi trong 15 phút liên tục
 - [ ] Summary được lưu vào bảng `market_summaries`
-- [ ] Panel Text trong Grafana hiển thị summary mới nhất
+- [ ] Grafana summary panel hiển thị summary mới nhất
 - [ ] Gọi API dùng Gemini free tier và không cần thẻ tín dụng
 - [ ] Mô tả kết quả bằng ngôn ngữ tự nhiên, dễ đọc
 
@@ -119,5 +119,5 @@ python ai/gemini_summary.py
 - API integration: REST/HTTP request handling
 - Environment management: `.env` và secret safety
 - Data storytelling: chuyển số liệu thành insight
-- Scheduling jobs: chạy định kỳ mỗi 5 phút
+- Scheduling jobs: chạy định kỳ mỗi 30 phút để bảo toàn free-tier quota
 - Monitoring UI: dashboard text panel và auto-refresh

@@ -21,7 +21,7 @@ The project now extends beyond the original four stages with a lightweight 5-day
 - **Day 1 — Observability UI (Done)**: add Kafdrop and pgAdmin so Kafka topics/messages and TimescaleDB data are visible in the browser.
 - **Day 2 — dbt Transformation Layer**: build Bronze → Silver → Gold models for clean metrics and daily rollups.
 - **Day 3 — Airflow Orchestration**: run dbt hourly and monitor Kafka lag with lightweight DAGs.
-- **Day 4 — AI Market Summary**: use Google Gemini free tier to generate 5-minute market summaries into PostgreSQL.
+- **Day 4 — AI Market Summary (Done)**: generate resilient 30-minute Gemini summaries with a transparent template fallback.
 - **Day 5 — AWS Migration**: run Kafka + Spark + PostgreSQL on one EC2 Free Tier instance, store Parquet in S3, and expose Grafana via Grafana Cloud.
 
 > This roadmap is intended for planning first. The implementation work for Days 2–5 will come after documentation review.
@@ -269,3 +269,19 @@ GRAFANA_ADMIN_PASSWORD=admin
 **[Your Name]**  
 Data Engineering Portfolio — Ho Chi Minh City  
 [LinkedIn](#) · [GitHub](#)
+
+---
+
+## Gemini AI Market Summary Setup
+
+1. Open `https://aistudio.google.com/apikey` and create a Gemini API key.
+2. Add the key to the project `.env` file: `GEMINI_API_KEY=your_key_here`.
+3. For an existing PostgreSQL volume, apply the new idempotent schema from PowerShell:
+   `Get-Content storage/init.sql -Raw | docker exec -i postgres psql -U pipeline -d crypto_pipeline`.
+4. Rebuild and start Airflow: `docker compose -f infrastructure/docker-compose.yml up -d --build airflow`.
+5. In Airflow, enable `ai_market_summary_dag`; it runs every 30 minutes.
+
+The task generates at most one summary per symbol per run with `gemini-2.5-flash`. Only
+HTTP 429 and 5xx responses are retried. If Gemini is unavailable, the task stores a
+deterministic `fallback_template` summary instead of failing, and the `source` column makes
+the degraded mode visible in PostgreSQL and Grafana.

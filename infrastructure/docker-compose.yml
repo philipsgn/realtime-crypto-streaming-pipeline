@@ -112,6 +112,8 @@ services:
     container_name: airflow
     ports:
       - "8080:8080"
+    env_file:
+      - ../.env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pipeline:changeme@postgres:5432/crypto_pipeline
@@ -132,8 +134,10 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:9093"
       POSTGRES_HOST: "postgres"
       POSTGRES_PORT: "5432"
+      PYTHONPATH: "/opt/airflow"
     volumes:
       - ../dags:/opt/airflow/dags
+      - ../ai:/opt/airflow/ai:ro
       - ../dbt_project:/opt/airflow/dbt_project
     depends_on:
       postgres:
@@ -142,7 +146,10 @@ services:
       resources:
         limits:
           memory: 768m
-    command: standalone
+    command:
+      - bash
+      - -c
+      - rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
 
 volumes:
   postgres_data:

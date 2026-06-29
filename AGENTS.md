@@ -139,7 +139,7 @@ Update this section as you complete each stage:
 | Day 1 — Observability UI | ✅ Completed | Docker UI visibility added |
 | Day 2 — dbt Transformation | ✅ Completed | Bronze/Silver/Gold models added |
 | Day 3 — Airflow Orchestration | ✅ Completed | DAGs added, Airflow containerized |
-| Day 4 — AI Market Summary | 🔲 Not started | — |
+| Day 4 — AI Market Summary | ✅ Completed | Resilient Gemini summaries and Grafana panel added |
 | Day 5 — AWS Migration | 🔲 Not started | — |
 | Stage 1 — Ingestion | 🔲 Not started | — |
 | Stage 2 — Processing | 🔲 Not started | — |
@@ -161,3 +161,11 @@ A: Only for debugging. Final pipeline must use PySpark Structured Streaming for 
 
 **Q: When should I move to cloud (AWS)?**
 A: Stage 4 (Week 4) — deploy to AWS EC2 t2.micro Free Tier + S3 for Parquet storage.
+
+---
+
+## Day 4 AI Summary Resilience Rule
+
+15. **AI summary stage must degrade gracefully to template fallback on Gemini quota
+exhaustion — never let LLM API failure crash the DAG. Schedule is 30 min, not 5 min, by
+design to preserve quota headroom against Google's history of free-tier cuts.**

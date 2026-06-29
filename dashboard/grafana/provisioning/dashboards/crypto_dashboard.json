@@ -286,9 +286,10 @@
       ]
     },
     {
-      "type": "barchart",
-      "title": "Trading Volume per Minute",
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 16 },
+      "type": "timeseries",
+      "title": "Trading Notional per Minute",
+      "description": "One-minute traded notional in USDT from the real-time Gold serving view.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
       "id": 4,
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -299,47 +300,71 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "axisPlacement": "auto",
-            "axisLabel": "",
+            "axisLabel": "USDT traded / min",
             "axisColorMode": "text",
             "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "barAlignment": 0,
+            "drawStyle": "bars",
             "fillOpacity": 80,
             "gradientMode": "none",
-            "lineWidth": 1,
-            "scaleDistribution": { "type": "linear" },
             "hideFrom": {
               "tooltip": false,
               "viz": false,
               "legend": false
             },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
             "thresholdsStyle": { "mode": "off" }
           },
+          "decimals": 0,
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              { "color": "green" },
-              { "color": "red", "value": 80 }
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "BTCUSDT" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#F7931A", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ETHUSDT" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#627EEA", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "SOLUSDT" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#14F195", "mode": "fixed" } }
             ]
           }
-        },
-        "overrides": []
+        ]
       },
+      "interval": "1m",
       "options": {
-        "barRadius": 0,
-        "barWidth": 1,
-        "groupWidth": 0.7,
         "legend": {
-          "displayMode": "list",
+          "calcs": ["lastNotNull", "mean", "max"],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "stacking": "none",
-        "showValue": "auto",
-        "orientation": "auto"
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
@@ -348,15 +373,15 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT window_start AS time, total_volume AS value, symbol AS metric FROM trade_metrics_1min WHERE $__timeFilter(window_start) ORDER BY window_start ASC",
-          "format": "table",
+          "rawSql": "SELECT window_start AS time, symbol AS metric, quote_volume_usdt AS value FROM gold_minute_volume WHERE $__timeFilter(window_start) ORDER BY window_start ASC",
+          "format": "time_series",
           "rawQuery": true,
           "editorMode": "code"
         }
       ]
     }
   ],
-  "refresh": "10s",
+  "refresh": "30s",
   "schemaVersion": 39,
   "style": "dark",
   "tags": [],
@@ -382,7 +407,7 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "Crypto Real-Time Pipeline",
-  "uid": "crypto-pipeline-dashboard",
+  "uid": "ffp2pi2hu4q9sd",
   "version": 1,
   "weekStart": ""
 }
