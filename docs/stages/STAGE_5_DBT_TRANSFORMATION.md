@@ -26,9 +26,11 @@ Mục tiêu là tạo thêm lớp analytics rõ ràng, giúp recruiter thấy đ
         │
         ▼
 [dbt models]
-  Bronze  → raw source views / staging models
-  Silver  → clean, dedupe, validate, remove outliers
-  Gold    → hourly VWAP rollup, daily summary
+  bronze_trades       → view đọc trade_metrics_1min
+  silver_trades       → view lọc null, volume/price không hợp lệ và outlier
+  gold_hourly_vwap    → table tổng hợp VWAP theo giờ
+  gold_daily_summary  → table tổng hợp theo ngày
+  gold_minute_volume  → view phục vụ volume theo phút cho Grafana
         │
         ▼
 [Analytics tables / dashboard inputs]
@@ -41,7 +43,7 @@ Mục tiêu là tạo thêm lớp analytics rõ ràng, giúp recruiter thấy đ
 
 | File | Vai trò |
 |---|---|
-| `dbt/` | Chứa project dbt, models và configs |
+| `dbt_project/` | Chứa dbt project, profiles, models và tests |
 | `storage/init.sql` | Schema và table gốc để dbt đọc |
 | `processing/spark_streaming.py` | Đảm bảo dữ liệu raw đã được sink đúng vào TimescaleDB |
 | `.env` | Kết nối DB cho dbt |
@@ -50,40 +52,35 @@ Mục tiêu là tạo thêm lớp analytics rõ ràng, giúp recruiter thấy đ
 
 ## Cách chạy Stage 5
 
-### Bước 1 — Chuẩn bị dbt project
+### Bước 1 — Cài dependency
 
 ```bash
-# Cài dbt-core và adapter cho PostgreSQL
 pip install dbt-core dbt-postgres
-
-# Khởi tạo project dbt
-dbt init crypto_pipeline
 ```
 
-### Bước 2 — Viết models theo medallion
+### Bước 2 — Kiểm tra cấu trúc hiện tại
 
-Các model nên có cấu trúc:
+Project hiện có:
 
-- `staging_` / `bronze_` để đọc bảng raw
-- `silver_` để clean và validate
-- `gold_` để tổng hợp theo giờ/ngày
+- `models/bronze/bronze_trades.sql`
+- `models/silver/silver_trades.sql`
+- `models/gold/gold_hourly_vwap.sql`
+- `models/gold/gold_daily_summary.sql`
+- `models/gold/gold_minute_volume.sql`
+- schema tests trong `models/schema.yml` và singular tests trong `tests/`
 
 ### Bước 3 — Chạy dbt
 
 ```bash
-# Chạy toàn bộ models
- dbt run
-
-# Chạy test
- dbt test
+cd dbt_project
+dbt debug --profiles-dir .
+dbt run --profiles-dir .
+dbt test --profiles-dir .
 ```
 
-**Output mong đợi:**
-```
-14:32:01  Running with dbt=1.8.0
-14:32:02  Found 6 models, 3 tests
-14:32:03  Finished running 6 models, 3 tests
-```
+Khi chạy trong Airflow container, profile nhận `POSTGRES_HOST=postgres` và
+`POSTGRES_PORT=5432`. Khi chạy từ Windows host, giá trị mặc định là
+`localhost:5433`. Cả hai đều phải đi qua `env_var()` trong `profiles.yml`.
 
 ---
 
@@ -92,8 +89,8 @@ Các model nên có cấu trúc:
 | Service | RAM dùng |
 |---|---|
 | dbt CLI | ~50 MB |
-| PostgreSQL query load | ~100–150 MB |
-| **Tổng Stage 5** | **~200 MB** |
+| PostgreSQL query load | dùng chung container TimescaleDB giới hạn 256 MB |
+| **Tổng tăng thêm khi chạy dbt** | **~50 MB** |
 
 ---
 
@@ -102,7 +99,7 @@ Các model nên có cấu trúc:
 | Lỗi | Nguyên nhân | Cách fix |
 |---|---|---|
 | `relation does not exist` | Model đọc sai schema/table | Check tên table trong TimescaleDB |
-| `connection refused` | DB chưa chạy hoặc port sai | Kiểm tra `docker ps` và `.env` |
+| `connection refused` | Dùng nhầm endpoint host/container | Host dùng `localhost:5433`; Airflow dùng `postgres:5432` |
 | `duplicate rows` | Không dedupe đúng trong silver layer | Thêm unique key hoặc distinct logic |
 | `outlier price` | Dữ liệu sai do Binance feed bất thường | Chặn giá ngoài phạm vi hợp lý |
 
@@ -111,9 +108,10 @@ Các model nên có cấu trúc:
 ## Definition of Done — Stage 5 hoàn thành khi
 
 - [ ] dbt project chạy thành công không lỗi
-- [ ] Có ít nhất 3 lớp models: Bronze, Silver, Gold
-- [ ] Gold model cung cấp được hourly/daily aggregate phù hợp cho dashboard
-- [ ] Có test cho null và schema validation
+- [ ] `dbt debug`, `dbt run` và `dbt test` đều pass
+- [ ] Có đủ `bronze_trades`, `silver_trades` và ba Gold models hiện tại
+- [ ] Gold models cung cấp hourly VWAP, daily summary và minute volume cho dashboard
+- [ ] Schema tests và singular tests đều pass
 - [ ] Có thể query kết quả bằng SQL rõ ràng và dễ hiểu
 
 ---

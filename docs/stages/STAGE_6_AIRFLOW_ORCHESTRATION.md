@@ -10,7 +10,9 @@ Stage này giải quyết câu hỏi: *"Làm sao chạy pipeline một cách có
 
 Khi project có nhiều bước như dbt run, health check Kafka lag, báo cáo hàng ngày, việc chạy thủ công sẽ rất dễ sai. Airflow giúp định nghĩa workflows bằng DAG và chạy theo schedule.
 
-Vì máy chỉ có khoảng 2GB RAM trống, stage này nên dùng **Airflow standalone mode** thay vì full Celery executor để tránh tiêu tốn RAM quá nhiều.
+Vì máy chỉ có khoảng 2GB RAM trống, stage này dùng **Airflow 2.9 standalone với
+LocalExecutor**, một webserver worker, parallelism `1` và giới hạn container `768m`.
+Không dùng CeleryExecutor hoặc KubernetesExecutor.
 
 ---
 
@@ -21,9 +23,10 @@ Vì máy chỉ có khoảng 2GB RAM trống, stage này nên dùng **Airflow sta
         │
         ▼
 [Airflow DAGs]
-  DAG 1: trigger dbt run mỗi giờ
-  DAG 2: check Kafka lag mỗi 5 phút
-  DAG 3: daily report query Gold layer
+  dbt_hourly_dag          → dbt deps/run/test mỗi giờ
+  kafka_lag_monitor_dag   → check Kafka lag mỗi 5 phút
+  daily_summary_dag       → query Gold layer mỗi ngày
+  ai_market_summary_dag   → Gemini/fallback mỗi 30 phút
         │
         ▼
 [Logs + alerts + summaries]
@@ -37,7 +40,8 @@ Vì máy chỉ có khoảng 2GB RAM trống, stage này nên dùng **Airflow sta
 | File | Vai trò |
 |---|---|
 | `dags/` | Chứa DAG definitions |
-| `infrastructure/docker-compose.yml` | Khởi động các dịch vụ nền cần thiết |
+| `infrastructure/docker-compose.yml` | Airflow standalone/LocalExecutor và memory limit |
+| `infrastructure/Dockerfile.airflow` | Image Airflow 2.9 cùng dbt và Python dependencies |
 | `docs/stages/STAGE_5_DBT_TRANSFORMATION.md` | Nền tảng cho DAG chạy dbt |
 | `.env` | Config database, Kafka, email/notification nếu cần |
 
@@ -45,33 +49,23 @@ Vì máy chỉ có khoảng 2GB RAM trống, stage này nên dùng **Airflow sta
 
 ## Cách chạy Stage 6
 
-### Bước 1 — Khởi động Airflow standalone
+### Bước 1 — Build và khởi động Airflow standalone
 
 ```bash
-# Cài Airflow 2.9
-pip install apache-airflow==2.9.0
-
-# Khởi tạo metadata DB
-airflow db init
-
-# Tạo user admin
-airflow users create \
-  --username admin \
-  --firstname Admin \
-  --lastname User \
-  --role Admin \
-  --email admin@example.com \
-  --password admin
-
-# Start webserver + scheduler
-airflow webserver --port 8080
-# terminal riêng
-airflow scheduler
+docker compose -f infrastructure/docker-compose.yml up -d --build airflow
 ```
+
+Compose chạy `airflow standalone`, tự migrate metadata DB và tạo user cấu hình bằng
+environment. Không khởi động thêm scheduler/webserver thủ công.
 
 ### Bước 2 — Đăng tải DAG
 
-Đưa file DAG vào thư mục `dags/` và restart scheduler nếu cần.
+`dags/`, `ai/` và `dbt_project/` được mount vào container theo Compose. Kiểm tra DAG import:
+
+```bash
+docker exec airflow airflow dags list-import-errors
+docker exec airflow airflow dags list
+```
 
 ### Bước 3 — Verify DAG chạy
 
@@ -80,11 +74,8 @@ Truy cập:
 - `http://localhost:8080`
 - Xem DAG state và logs
 
-**Output mong đợi:**
-```
-DAG runs succeed
-Task logs show dbt run / lag check completed
-```
+Với image hiện tại, dùng `airflow dags list-runs`, `airflow tasks states-for-dag-run` và
+đọc trực tiếp `/opt/airflow/logs/` khi cần task logs; lệnh `airflow tasks logs` không có.
 
 ---
 
@@ -92,9 +83,10 @@ Task logs show dbt run / lag check completed
 
 | Service | RAM dùng |
 |---|---|
-| Airflow webserver + scheduler | ~250–300 MB |
-| PostgreSQL metadata DB | ~100 MB |
-| **Tổng Stage 6** | **~350–400 MB** |
+| Airflow standalone/LocalExecutor | container limit `768m` |
+| Webserver workers | `1` |
+| Parallelism | `1` |
+| PostgreSQL metadata | dùng chung TimescaleDB container giới hạn 256 MB |
 
 ---
 
@@ -104,17 +96,20 @@ Task logs show dbt run / lag check completed
 |---|---|---|
 | `ImportError` | DAG import sai module | Kiểm tra đường dẫn package và Python path |
 | `Scheduler not picking up DAG` | File chưa được lưu đúng folder | Đặt DAG vào đúng thư mục `dags/` |
-| `DB connection failed` | Metadata DB chưa init hoặc password sai | Chạy `airflow db init` lại |
+| `DB connection failed` | Sai endpoint hoặc credential container | Dùng `postgres:5432` và environment Compose |
 | `Task timeout` | Query chạy quá lâu | Tối ưu SQL / tăng timeout hợp lý |
+| `OOMKilled` | Airflow vượt memory limit | Kiểm tra `docker stats`, inspect OOM và logs trước khi chỉnh limit |
 
 ---
 
 ## Definition of Done — Stage 6 hoàn thành khi
 
 - [ ] Airflow UI mở được và thấy DAGs
-- [ ] Có ít nhất 3 DAGs được định nghĩa rõ ràng
-- [ ] DAG chạy dbt thành công theo schedule
-- [ ] Health check Kafka lag log ra đúng threshold
+- [ ] Cả bốn DAG import không lỗi và xuất hiện trong UI
+- [ ] `dbt_hourly_dag` chạy `dbt deps/run/test` thành công
+- [ ] Kafka lag task raise khi broker lỗi và chỉ WARNING khi lag vượt threshold
+- [ ] Daily summary fail khi query lỗi, nhưng chỉ WARNING khi không có dữ liệu hôm qua
+- [ ] AI summary chạy 30 phút/lần và không crash khi Gemini hết quota
 - [ ] Có dashboard/log để debug khi job fail
 
 ---

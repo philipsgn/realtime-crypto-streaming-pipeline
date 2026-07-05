@@ -8,15 +8,15 @@ description: >
 version: "1.1"
 author: project-owner
 references:
-  - references/PROJECT_CONTEXT.md
-  - references/STAGE_1_INGESTION.md
-  - references/STAGE_2_PROCESSING.md
-  - references/STAGE_3_STORAGE.md
-  - references/STAGE_4_DASHBOARD_DEPLOY.md
-  - references/STAGE_5_DBT_TRANSFORMATION.md
-  - references/STAGE_6_AIRFLOW_ORCHESTRATION.md
-  - references/STAGE_7_AI_MARKET_SUMMARY.md
-  - references/STAGE_8_AWS_MIGRATION.md
+  - ../../../docs/PROJECT_CONTEXT.md
+  - ../../../docs/stages/STAGE_1_INGESTION.md
+  - ../../../docs/stages/STAGE_2_PROCESSING.md
+  - ../../../docs/stages/STAGE_3_STORAGE.md
+  - ../../../docs/stages/STAGE_4_DASHBOARD_DEPLOY.md
+  - ../../../docs/stages/STAGE_5_DBT_TRANSFORMATION.md
+  - ../../../docs/stages/STAGE_6_AIRFLOW_ORCHESTRATION.md
+  - ../../../docs/stages/STAGE_7_AI_MARKET_SUMMARY.md
+  - ../../../docs/stages/STAGE_8_AWS_DEMO_RUNBOOK.md
 ---
 
 # Skill: crypto-pipeline
@@ -41,7 +41,7 @@ realtime-crypto-streaming-pipeline/
 ├── ingestion/binance_producer.py    ← Stage 1
 ├── processing/spark_streaming.py   ← Stage 2
 ├── storage/postgres_sink.py        ← Stage 3
-├── dbt/                             ← Stage 5: Bronze/Silver/Gold
+├── dbt_project/                     ← Stage 5: Bronze/Silver/Gold
 ├── dags/                            ← Stage 6: Airflow DAGs
 ├── ai/                              ← Stage 7: Gemini summary
 ├── dashboard/grafana/              ← Stage 4
@@ -50,14 +50,14 @@ realtime-crypto-streaming-pipeline/
 └── docs/stages/                    ← Stage detail files
 ```
 
-### RAM Budget (tổng ~1.2GB)
+### Giới hạn RAM theo service
 
 ```
-Kafka KRaft   : 350MB
+Kafka KRaft   : 400MB
 PySpark local : 512MB
 TimescaleDB   : 256MB
 Grafana       : 200MB
-Airflow (standalone): 300MB
+Airflow standalone/LocalExecutor: 768MB
 dbt run       : ~50MB
 Python scripts: ~100MB
 ```
@@ -70,4 +70,5 @@ Kafka ✓ | PySpark ✓ | TimescaleDB ✓ | Grafana ✓ | Binance WebSocket ✓ 
 
 ## Đọc thêm
 
-Xem chi tiết từng stage trong thư mục `references/`.
+Xem context và tài liệu chuẩn trong `../../../docs/`. Không tạo bản mirror trong skill;
+`docs/` là single source of truth của project.

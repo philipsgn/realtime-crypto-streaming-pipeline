@@ -11,7 +11,10 @@ Xây dựng một **end-to-end streaming data pipeline** xử lý dữ liệu gi
 
 **Người thực hiện:** Sinh viên năm cuối ngành CNTT, đang tự học để apply vị trí Data Engineer Intern tại TP. Hồ Chí Minh, Việt Nam.
 
-**Mục đích chính:** Portfolio project để gây ấn tượng với nhà tuyển dụng — không phải production system thực tế.
+**Mục đích chính:** Portfolio project triển khai theo production-oriented practices. Day 5 là
+production-grade demo deployment chạy ngắn hạn trên AWS; sau khi kiểm thử và thu thập bằng
+chứng CV thì teardown ngay để kiểm soát chi phí. Đây không phải workload phục vụ người dùng
+thật 24/7 và kiến trúc một EC2 không được mô tả là high availability.
 
 ---
 
@@ -22,8 +25,8 @@ Xây dựng một **end-to-end streaming data pipeline** xử lý dữ liệu gi
 | **Hardware** | Intel i3-1115G4, RAM 7.7GB (chỉ ~2GB free khi chạy), SSD NVMe |
 | **OS** | Windows (Docker Desktop) |
 | **Kinh nghiệm** | Sinh viên năm cuối, chưa có kinh nghiệm DE thực tế |
-| **Thời gian** | 4 tuần, mỗi tuần 1 stage |
-| **Budget** | Ưu tiên free tier — AWS Free Tier, Oracle Cloud Free |
+| **Thời gian** | Roadmap 5 ngày cho dbt, Airflow, AI và AWS demo sau baseline Stage 1–4 |
+| **Budget** | AWS Free Plan dạng credit; Day 5 tối đa 4 giờ và mục tiêu dưới $1 credit |
 | **Data** | Real data từ Binance WebSocket API, KHÔNG dùng mock/simulate |
 
 > ⚠️ **Khi AI gợi ý giải pháp, phải luôn kiểm tra xem có phù hợp với RAM ~2GB free không. Nếu cần >1.5GB RAM thêm, phải nêu rõ và đề xuất cách tối ưu.**
@@ -41,7 +44,7 @@ Storage     : PostgreSQL + TimescaleDB (hypertable), Parquet (local → S3)
 Orchestration: Apache Airflow 2.9 (standalone mode)
 AI          : Google Gemini API (gemini-2.5-flash, free tier)
 Dashboard   : Grafana 10.4
-Cloud       : AWS EC2 + S3 + Grafana Cloud (Free Tier only)
+Cloud       : Một EC2 m7i-flex.large + S3 + Grafana Cloud (ephemeral CV demo)
 Infra       : Docker Compose
 CI/CD       : GitHub Actions (ruff lint, mypy type check)
 ```
@@ -102,16 +105,17 @@ CI/CD       : GitHub Actions (ruff lint, mypy type check)
                DAG 1: dbt run hourly
                DAG 2: Kafka lag health check every 5 min
                DAG 3: daily summary report
+               DAG 4: AI market summary every 30 min
                       │
                       ▼
                [AI summary job]
-               Query Gold tables every 5 min
+               Query Gold tables every 30 min
                Call Gemini API (gemini-2.5-flash)
                Save to market_summaries
                       │
                       ▼
                [Grafana Dashboard]
-               Auto-refresh: 10s / 5 min text panel
+               Auto-refresh: 30s / 30 min summary panel
                Panels: BTC price, VWAP, volume bar, AI summary
 ```
 
@@ -128,10 +132,13 @@ realtime-crypto-streaming-pipeline/
 ├── storage/
 │   ├── postgres_sink.py         # Stage 3: TimescaleDB helpers
 │   └── init.sql                 # Stage 3: Schema + hypertable DDL
-├── dbt/
+├── dbt_project/
 │   └── models/                   # Stage 5: Bronze / Silver / Gold models
 ├── dags/
-│   └── airflow/                  # Stage 6: DAGs for orchestration
+│   ├── dbt_hourly_dag.py         # Stage 6: dbt deps/run/test
+│   ├── kafka_lag_monitor_dag.py  # Stage 6: Kafka health
+│   ├── daily_summary_dag.py      # Stage 6: daily Gold report
+│   └── ai_market_summary_dag.py  # Stage 7: Gemini/fallback mỗi 30 phút
 ├── ai/
 │   └── gemini_summary.py         # Stage 7: Gemini-based summaries
 ├── dashboard/
@@ -148,7 +155,7 @@ realtime-crypto-streaming-pipeline/
 │       ├── STAGE_5_DBT_TRANSFORMATION.md
 │       ├── STAGE_6_AIRFLOW_ORCHESTRATION.md
 │       ├── STAGE_7_AI_MARKET_SUMMARY.md
-│       └── STAGE_8_AWS_MIGRATION.md
+│       └── STAGE_8_AWS_DEMO_RUNBOOK.md
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -181,7 +188,7 @@ realtime-crypto-streaming-pipeline/
 | 2 | dbt Transformation | Bronze/Silver/Gold models chạy được trên TimescaleDB | STAGE_5_DBT_TRANSFORMATION.md |
 | 3 | Airflow Orchestration | DAGs chạy dbt + health check Kafka lag | STAGE_6_AIRFLOW_ORCHESTRATION.md |
 | 4 | AI Market Summary | Gemini summary lưu vào `market_summaries` và hiển thị Grafana | STAGE_7_AI_MARKET_SUMMARY.md |
-| 5 | AWS Migration | EC2 + S3 + Grafana Cloud free tier, có budget alert | STAGE_8_AWS_MIGRATION.md |
+| 5 | AWS Production-grade Demo | Full stack trên một EC2, S3 + Grafana Cloud, thu bằng chứng rồi teardown | STAGE_8_AWS_DEMO_RUNBOOK.md |
 
 ---
 
@@ -202,14 +209,14 @@ realtime-crypto-streaming-pipeline/
 ### Khi user hỏi về career / CV
 - Project này target vị trí **Data Engineer Intern** tại HCM
 - Điểm mạnh nhất để nhấn: real data (không mock), Kafka + Spark combo, end-to-end
-- Điểm cần bổ sung thêm: dbt layer, AWS cloud deployment
+- Điểm cần hoàn thiện: Stage 8 production acceptance evidence và teardown evidence
 
 ### Khi user muốn mở rộng project
 Gợi ý theo thứ tự ưu tiên:
-1. Thêm dbt models (Bronze/Silver/Gold) → tăng DWH signal
-2. Deploy AWS EC2 + S3 thật → tăng Cloud signal
+1. Hoàn thành AWS EC2 + S3 demo và production acceptance checks
+2. Migrate toàn bộ Grafana analytics panels sang dbt Gold serving models
 3. Thêm alert rule trong Grafana (price anomaly detection)
-4. Thêm schema registry (Confluent) cho Kafka → advanced
+4. Thêm schema registry cho Kafka nếu RAM budget cho phép
 
 ---
 
@@ -228,4 +235,4 @@ Gợi ý theo thứ tự ưu tiên:
 | "Bronze/Silver/Gold" | Lớp dữ liệu medallion: raw → clean → analytics-ready |
 | "DAG" | Directed Acyclic Graph — workflow định nghĩa task chạy theo thứ tự |
 | "lag" | Khoảng chênh lệch giữa tốc độ sản xuất và tiêu thụ của Kafka consumer |
-| "Free Tier" | Gói miễn phí cho cloud services, thường có giới hạn và cảnh báo chi phí |
+| "AWS Free Plan" | Gói credit-backed của tài khoản demo; phải kiểm tra số dư và ngày hết hạn trước khi launch |

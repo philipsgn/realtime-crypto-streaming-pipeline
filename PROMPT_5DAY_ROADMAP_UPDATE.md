@@ -19,7 +19,7 @@ The project currently has these doc files that need updating:
 - docs/PROJECT_CONTEXT.md
 - docs/stages/STAGE_1_INGESTION.md through STAGE_4
 - .agents/skills/crypto-pipeline/SKILL.md
-- .agents/skills/crypto-pipeline/references/*.md (mirrors docs/stages/)
+- .agents/skills/crypto-pipeline/SKILL.md references docs directly; do not create doc mirrors
 
 TASK: I am extending this project over 5 new days. Read the existing
 README.md, AGENTS.md, and docs/PROJECT_CONTEXT.md FIRST to understand
@@ -56,32 +56,65 @@ Day 4 — AI Layer: LLM Market Summary (COST-OPTIMIZED — $0)
     never hardcode the key, and must NOT reference Claude/Anthropic API
     anywhere in this stage — this stage is 100% free tier by design
 
-Day 5 — AWS Migration (COST-OPTIMIZED — Free Tier only, single EC2 instance)
-  - Kafka + Spark + PostgreSQL (self-managed, NOT RDS) all run on ONE
-    EC2 t2.micro instance (Free Tier: 750 hours/month for 12 months) —
-    consolidating to one instance avoids paying for multiple compute
-    resources and avoids RDS's post-12-month billing cliff
-  - Rationale to include in docs: RDS Free Tier expires after 12 months
-    and RDS PostgreSQL does not support the TimescaleDB extension at all
-    on managed tier — self-managed PostgreSQL+TimescaleDB on EC2 avoids
-    both problems and costs nothing beyond the EC2 Free Tier hours
-  - Parquet storage migrates from local disk to S3 bucket (S3 Free Tier:
-    5GB storage, 20,000 GET + 2,000 PUT requests/month — sufficient for
-    this project's data volume)
-  - Grafana migrates to Grafana Cloud free tier (free forever tier: 10k
-    series, 14-day retention) for a public dashboard URL for the CV
-  - Add a cost-tracking note in docs: set up AWS Budgets alert at $1
-    threshold so the student gets an email before anything could ever
-    be charged
+Day 5 — AWS Ephemeral CV Demo (Free Plan credits, 4-hour hard cap)
+  - Account context: AWS account created in January 2026, uses the new
+    credit-backed AWS Free Plan, has about $42 credit remaining, and is NOT
+    covered by the legacy 750 hours/month for 12 months offer
+  - Before launching anything, verify the exact Free Plan expiration date in
+    Billing and Cost Management; remaining credits do not extend that date
+  - Deploy in us-east-1 on ONE m7i-flex.large x86 instance (2 vCPU, 8 GiB RAM)
+    for a maximum of 4 hours; target total credit usage below $1
+  - Run the full pipeline on EC2: Binance producer, Kafka KRaft, PySpark,
+    self-managed PostgreSQL+TimescaleDB, dbt, Airflow standalone/LocalExecutor,
+    and the Gemini market summary stage
+  - Do NOT run pgAdmin, Kafdrop, or Grafana OSS on EC2; they are unnecessary
+    for the CV demo and consume RAM
+  - Do NOT use RDS: managed RDS PostgreSQL does not provide the required
+    TimescaleDB setup. Do not repeat the obsolete 12-month Free Tier rationale
+  - Do NOT use NAT Gateway, Load Balancer, Elastic IP, or any additional paid
+    compute service; use a public subnet with an Internet Gateway
+  - Security Group inbound rules: SSH 22 and Airflow 8080 from the student's
+    current public IP only. Never expose Kafka 9092 or PostgreSQL 5432 publicly
+  - Keep secrets in an EC2-local .env file with permission 600. Use an IAM
+    instance role for AWS access; never store AWS access keys in code or .env
+  - Migrate Parquet storage to a private S3 bucket with Block Public Access and
+    SSE-S3 enabled. Keep Spark checkpoints on EBS and never delete checkpoints
+    during application restart
+  - Avoid S3 small-file growth: compact and upload Parquet hourly, partitioned
+    by date/hour/symbol, targeting one closed data file per symbol per hour
+  - Use Grafana Cloud free tier for the CV dashboard. Connect it to the private
+    PostgreSQL datasource through Grafana Private Data Source Connect (PDC)
+    with a dedicated read-only database user; do not expose port 5432
+  - Import the existing dashboard, publish an externally shared dashboard URL,
+    and verify that Gold metrics and the latest AI summaries are visible
+  - Configure AWS Budgets actual and forecast alerts at $1 before EC2 launch.
+    Document that Budget alerts can be delayed and are not a hard spending cap
+  - Set EC2 instance-initiated shutdown behavior to Terminate and schedule an
+    OS shutdown timer for 4 hours as a safety net
+  - Collect CV evidence in the same session: architecture screenshot, healthy
+    services, successful Airflow runs, S3 Parquet objects, Grafana Cloud public
+    dashboard, and AWS credit balance before/after. Redact secrets and account ID
+  - Definition of Done:
+    * Real Binance events flow through Kafka -> Spark -> TimescaleDB -> dbt Gold
+    * All four Airflow DAGs have a successful run on EC2
+    * Compacted Parquet files exist in S3 under date/hour/symbol partitions
+    * Grafana Cloud public dashboard shows Gold metrics and AI summaries
+    * Recorded credit usage remains below the $1 target
+    * All AWS workload resources are deleted within the same demo session
+  - Teardown immediately after collecting evidence: terminate EC2; delete EBS
+    volumes, snapshots/AMIs, S3 objects and bucket, dedicated IAM role/policy,
+    Security Group, key pair, public IP/EIP, and Grafana PDC credentials
+  - Final cost check: inspect EC2 Global View, S3, EBS volumes/snapshots, Elastic
+    IPs, and Billing to confirm that no chargeable resources remain
 
 REQUIRED OUTPUT — update these files:
 
 1. README.md
    - Add a "Roadmap" section with Day 1-5 above the existing 4-stage structure
-   - Update "Project Structure" tree to include: dbt/, dags/ (Airflow), 
+   - Update "Project Structure" tree to include: dbt_project/, dags/ (Airflow),
      ai/ (LLM summary script)
-   - Update tech stack table to add: dbt, Airflow 2.9, Claude API, AWS 
-     (EC2/S3/RDS/Grafana Cloud)
+   - Update tech stack table to add: dbt, Airflow 2.9, Gemini API, AWS
+     (EC2/S3/Grafana Cloud)
    - Keep existing Stage 1-4 content intact — append, do not delete
 
 2. AGENTS.md
@@ -113,16 +146,16 @@ REQUIRED OUTPUT — update these files:
    - docs/stages/STAGE_5_DBT_TRANSFORMATION.md
    - docs/stages/STAGE_6_AIRFLOW_ORCHESTRATION.md
    - docs/stages/STAGE_7_AI_MARKET_SUMMARY.md
-   - docs/stages/STAGE_8_AWS_MIGRATION.md
+   - docs/stages/STAGE_8_AWS_DEMO_RUNBOOK.md
    Each file must follow the EXACT same structure as STAGE_1_INGESTION.md:
    Bối cảnh, Luồng dữ liệu, File liên quan, Cách chạy, Memory footprint,
    Lỗi thường gặp, Definition of Done, Skills học được — in Vietnamese,
    matching the existing tone and detail level.
 
-5. Copy the 4 new stage files into:
-   .agents/skills/crypto-pipeline/references/
-   Update .agents/skills/crypto-pipeline/SKILL.md "references" frontmatter
-   list to include all 4 new files.
+5. Keep `docs/` as the single source of truth. Update
+   `.agents/skills/crypto-pipeline/SKILL.md` frontmatter to reference
+   `../../../docs/PROJECT_CONTEXT.md` and `../../../docs/stages/*.md` directly.
+   Do not create or maintain mirrored Markdown files inside the skill.
 
 CONSTRAINTS:
 - Machine: Windows, Docker Desktop, RAM ~2GB free — flag any step 
@@ -155,6 +188,6 @@ each file. I will review and approve each file individually.
 
 - Prompt yêu cầu Agent đọc file thật trước — tránh tình trạng bịa nội dung không khớp code
 - Tách riêng "documentation" và "implementation" — làm doc trước, code sau, để bạn review được lộ trình trước khi bắt tay code Day 2-5
-- **Đổi Claude API → Gemini API free tier**: Gemini 2.5 Flash cho 1,500 requests/ngày miễn phí, không cần thẻ tín dụng — đủ dư cho nhu cầu gọi mỗi 5 phút (288 lần/ngày). CV vẫn ghi được "LLM-powered market intelligence", interviewer không quan tâm bạn dùng Claude hay Gemini.
-- **AWS Day 5 tối ưu chi phí**: dùng 1 EC2 instance duy nhất chạy cả Kafka + Spark + PostgreSQL, bỏ RDS — vì RDS hết free tier sau 12 tháng và không hỗ trợ TimescaleDB extension. Thêm AWS Budget alert ở $1 để có email cảnh báo trước khi bị tính phí bất ngờ.
+- **Đổi Claude API → Gemini API free tier**: dùng Gemini 2.5 Flash mỗi 30 phút (48 lần/ngày) và template fallback khi quota/API lỗi. CV vẫn ghi được "LLM-powered market intelligence" mà không để lỗi LLM làm crash DAG.
+- **AWS Day 5 tối ưu chi phí**: dùng một `m7i-flex.large` chạy full stack trong tối đa 4 giờ, không dùng RDS, thu bằng chứng CV rồi teardown toàn bộ. AWS Budget alert `$1` chỉ là cảnh báo, không phải hard spending cap.
 - Lấy Gemini API key tại **aistudio.google.com/apikey** — hoàn toàn miễn phí, không cần khai báo thẻ.
