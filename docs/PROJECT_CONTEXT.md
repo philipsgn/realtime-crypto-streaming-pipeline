@@ -12,9 +12,9 @@ Xây dựng một **end-to-end streaming data pipeline** xử lý dữ liệu gi
 **Người thực hiện:** Sinh viên năm cuối ngành CNTT, đang tự học để apply vị trí Data Engineer Intern tại TP. Hồ Chí Minh, Việt Nam.
 
 **Mục đích chính:** Portfolio project triển khai theo production-oriented practices. Day 5 là
-production-grade demo deployment chạy ngắn hạn trên AWS; sau khi kiểm thử và thu thập bằng
+production-grade demo deployment chạy ngắn hạn trên Azure; sau khi kiểm thử và thu thập bằng
 chứng CV thì teardown ngay để kiểm soát chi phí. Đây không phải workload phục vụ người dùng
-thật 24/7 và kiến trúc một EC2 không được mô tả là high availability.
+thật 24/7 và kiến trúc một VM không được mô tả là high availability.
 
 ---
 
@@ -25,8 +25,8 @@ thật 24/7 và kiến trúc một EC2 không được mô tả là high availab
 | **Hardware** | Intel i3-1115G4, RAM 7.7GB (chỉ ~2GB free khi chạy), SSD NVMe |
 | **OS** | Windows (Docker Desktop) |
 | **Kinh nghiệm** | Sinh viên năm cuối, chưa có kinh nghiệm DE thực tế |
-| **Thời gian** | Roadmap 5 ngày cho dbt, Airflow, AI và AWS demo sau baseline Stage 1–4 |
-| **Budget** | AWS Free Plan dạng credit; Day 5 tối đa 4 giờ và mục tiêu dưới $1 credit |
+| **Thời gian** | Roadmap 5 ngày cho dbt, Airflow, AI và Azure demo sau baseline Stage 1–4 |
+| **Budget** | Azure Free Account `$200 credit/30 ngày`; Day 5 chạy ngắn hạn rồi teardown |
 | **Data** | Real data từ Binance WebSocket API, KHÔNG dùng mock/simulate |
 
 > ⚠️ **Khi AI gợi ý giải pháp, phải luôn kiểm tra xem có phù hợp với RAM ~2GB free không. Nếu cần >1.5GB RAM thêm, phải nêu rõ và đề xuất cách tối ưu.**
@@ -40,11 +40,12 @@ Ingestion   : Python (websockets, kafka-python) → Binance WebSocket API
 Queue       : Apache Kafka 3.7 (KRaft mode, không dùng Zookeeper)
 Processing  : PySpark 3.5 Structured Streaming (local[2] mode)
 Transformation: dbt Core (Bronze / Silver / Gold)
-Storage     : PostgreSQL + TimescaleDB (hypertable), Parquet (local → S3)
+Storage     : PostgreSQL + TimescaleDB (hypertable), Parquet (local → Azure Blob)
 Orchestration: Apache Airflow 2.9 (standalone mode)
 AI          : Google Gemini API (gemini-2.5-flash, free tier)
 Dashboard   : Grafana 10.4
-Cloud       : Một EC2 m7i-flex.large + S3 + Grafana Cloud (ephemeral CV demo)
+Cloud       : Một Azure VM Standard_B2s + Azure Blob + Managed Identity + Grafana Cloud
+              (ephemeral CV demo)
 Infra       : Docker Compose
 CI/CD       : GitHub Actions (ruff lint, mypy type check)
 ```
@@ -93,7 +94,7 @@ CI/CD       : GitHub Actions (ruff lint, mypy type check)
         │
         ├──▶ [Parquet files — local]
         │     Partition: date/symbol
-        │     (S3 khi deploy lên cloud)
+        │     (Azure Blob khi deploy lên cloud)
         │
         └──▶ [dbt models — Bronze / Silver / Gold]
                Bronze: raw metrics from TimescaleDB
@@ -155,7 +156,7 @@ realtime-crypto-streaming-pipeline/
 │       ├── STAGE_5_DBT_TRANSFORMATION.md
 │       ├── STAGE_6_AIRFLOW_ORCHESTRATION.md
 │       ├── STAGE_7_AI_MARKET_SUMMARY.md
-│       └── STAGE_8_AWS_DEMO_RUNBOOK.md
+│       └── STAGE_8_AZURE_DEMO_RUNBOOK.md
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -188,7 +189,7 @@ realtime-crypto-streaming-pipeline/
 | 2 | dbt Transformation | Bronze/Silver/Gold models chạy được trên TimescaleDB | STAGE_5_DBT_TRANSFORMATION.md |
 | 3 | Airflow Orchestration | DAGs chạy dbt + health check Kafka lag | STAGE_6_AIRFLOW_ORCHESTRATION.md |
 | 4 | AI Market Summary | Gemini summary lưu vào `market_summaries` và hiển thị Grafana | STAGE_7_AI_MARKET_SUMMARY.md |
-| 5 | AWS Production-grade Demo | Full stack trên một EC2, S3 + Grafana Cloud, thu bằng chứng rồi teardown | STAGE_8_AWS_DEMO_RUNBOOK.md |
+| 5 | Azure Production-grade Demo | Full stack trên một VM Standard_B2s, Blob Storage + Grafana Cloud, thu bằng chứng rồi teardown | STAGE_8_AZURE_DEMO_RUNBOOK.md |
 
 ---
 
@@ -213,7 +214,7 @@ realtime-crypto-streaming-pipeline/
 
 ### Khi user muốn mở rộng project
 Gợi ý theo thứ tự ưu tiên:
-1. Hoàn thành AWS EC2 + S3 demo và production acceptance checks
+1. Hoàn thành Azure VM + Blob Storage demo và production acceptance checks
 2. Migrate toàn bộ Grafana analytics panels sang dbt Gold serving models
 3. Thêm alert rule trong Grafana (price anomaly detection)
 4. Thêm schema registry cho Kafka nếu RAM budget cho phép
@@ -224,7 +225,7 @@ Gợi ý theo thứ tự ưu tiên:
 
 | Thuật ngữ | Ý nghĩa trong context này |
 |---|---|
-| "stage" | Một trong các giai đoạn của roadmap: Ingestion, Processing, Storage, Dashboard, dbt, Airflow, AI, AWS |
+| "stage" | Một trong các giai đoạn của roadmap: Ingestion, Processing, Storage, Dashboard, dbt, Airflow, AI, Azure |
 | "event" | Một giao dịch crypto từ Binance (JSON object) |
 | "window" | Khoảng thời gian Spark gom events để tính metrics (1 min / 5 min) |
 | "VWAP" | Volume-Weighted Average Price — giá trung bình có tính đến khối lượng |
@@ -235,4 +236,4 @@ Gợi ý theo thứ tự ưu tiên:
 | "Bronze/Silver/Gold" | Lớp dữ liệu medallion: raw → clean → analytics-ready |
 | "DAG" | Directed Acyclic Graph — workflow định nghĩa task chạy theo thứ tự |
 | "lag" | Khoảng chênh lệch giữa tốc độ sản xuất và tiêu thụ của Kafka consumer |
-| "AWS Free Plan" | Gói credit-backed của tài khoản demo; phải kiểm tra số dư và ngày hết hạn trước khi launch |
+| "Azure Free Account" | Gói `$200 credit/30 ngày`; Standard_B2s dùng credit, không phải free forever, và phải teardown sau demo |

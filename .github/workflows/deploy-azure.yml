@@ -1,0 +1,36 @@
+name: Deploy Azure Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      azure_vm_ip:
+        description: "Azure VM public IP"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ inputs.azure_vm_ip }}
+          username: azureuser
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/realtime-crypto-streaming-pipeline
+            git fetch origin main
+            git pull --ff-only origin main
+            docker compose -f infrastructure/docker-compose.azure.yml up -d --build
+            docker compose -f infrastructure/docker-compose.azure.yml ps
+            curl -f http://localhost:8080/health
+            echo "Deployed commit: $(git rev-parse HEAD)"
+            echo "Deployed at UTC: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"

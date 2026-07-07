@@ -29,8 +29,8 @@ targeting a Data Engineer Intern position in Ho Chi Minh City, Vietnam.
 8. **Airflow standalone mode only — no Celery executor (RAM constraint)**
 9. **dbt models read from TimescaleDB, never bypass Spark sink**
 10. **AI summary stage uses GOOGLE GEMINI API (gemini-2.5-flash) ONLY — never Claude API or OpenAI API — this stage must remain $0 cost**
-11. **AWS migration: single EC2 instance for Kafka+Spark+PostgreSQL, NOT RDS — RDS has no free TimescaleDB and bills after 12 months**
-12. **Before implementing any AWS step, confirm it fits within Free Tier limits (EC2 750hrs/mo, S3 5GB, Grafana Cloud free tier) — flag any paid-tier requirement before writing code**
+11. **Day 5 uses Azure Free Account ($200 credit, 30 days): one Azure VM `Standard_B2s` for Kafka+Spark+PostgreSQL+Airflow, Blob Storage for Parquet, Managed Identity for storage access, NSG/VNet for network boundary**
+12. **Before implementing any Azure step, confirm it fits the 30-day credit-backed demo plan; `Standard_B2s` uses credit and is NOT the B1s free VM. Flag any paid-tier or Pay-as-you-go requirement before writing code**
 13. **dbt models read from TimescaleDB only via Silver/Gold layers — Grafana queries Gold tables, never queries trade_metrics_1min directly going forward**
 14. **Airflow standalone/LocalExecutor only, max 768MB — never suggest CeleryExecutor or KubernetesExecutor for this project**
 
@@ -69,10 +69,11 @@ Ingestion   : websockets==12.0, kafka-python==2.0.2
 Queue       : Apache Kafka 3.7 (KRaft, NO Zookeeper)
 Processing  : PySpark 3.5 Structured Streaming, local[2] mode
 Transformation: dbt Core (Bronze/Silver/Gold)
-Storage     : TimescaleDB (PostgreSQL 16), Parquet (local → S3 later)
+Storage     : TimescaleDB (PostgreSQL 16), Parquet (local → Azure Blob later)
 Orchestration: Apache Airflow 2.9 (standalone mode only)
 AI          : Google Gemini API (gemini-2.5-flash, free tier)
 Dashboard   : Grafana 10.4
+Cloud       : Azure VM Standard_B2s + Azure Blob + Managed Identity + Grafana Cloud
 Infra       : Docker Compose
 CI/CD       : GitHub Actions (ruff + mypy)
 ```
@@ -140,7 +141,7 @@ Update this section as you complete each stage:
 | Day 2 — dbt Transformation | ✅ Completed | Bronze/Silver/Gold models added |
 | Day 3 — Airflow Orchestration | ✅ Completed | DAGs added, Airflow containerized |
 | Day 4 — AI Market Summary | ✅ Completed | Resilient Gemini summaries and Grafana panel added |
-| Day 5 — AWS Migration | 🔲 Not started | — |
+| Day 5 — Azure Cloud Demo | 🔲 Not started | — |
 | Stage 1 — Ingestion | 🔲 Not started | — |
 | Stage 2 — Processing | 🔲 Not started | — |
 | Stage 3 — Storage | 🔲 Not started | — |
@@ -159,8 +160,10 @@ A: No. Use `local[2]` mode — cluster mode requires separate worker nodes, too 
 **Q: Can I use asyncio Kafka consumer instead of Spark?**
 A: Only for debugging. Final pipeline must use PySpark Structured Streaming for CV credibility.
 
-**Q: When should I move to cloud (AWS)?**
-A: Stage 4 (Week 4) — deploy to AWS EC2 t2.micro Free Tier + S3 for Parquet storage.
+**Q: When should I move to cloud (Azure)?**
+A: Day 5 — run a short production-grade CV demo on Azure VM Standard_B2s using the
+$200/30-day credit, Blob Storage, Managed Identity, GitHub Actions, and teardown immediately
+after collecting evidence. Do not upgrade to Pay-as-you-go for this demo.
 
 ---
 

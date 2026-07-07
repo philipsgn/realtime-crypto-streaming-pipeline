@@ -56,56 +56,56 @@ Day 4 — AI Layer: LLM Market Summary (COST-OPTIMIZED — $0)
     never hardcode the key, and must NOT reference Claude/Anthropic API
     anywhere in this stage — this stage is 100% free tier by design
 
-Day 5 — AWS Ephemeral CV Demo (Free Plan credits, 4-hour hard cap)
-  - Account context: AWS account created in January 2026, uses the new
-    credit-backed AWS Free Plan, has about $42 credit remaining, and is NOT
-    covered by the legacy 750 hours/month for 12 months offer
-  - Before launching anything, verify the exact Free Plan expiration date in
-    Billing and Cost Management; remaining credits do not extend that date
-  - Deploy in us-east-1 on ONE m7i-flex.large x86 instance (2 vCPU, 8 GiB RAM)
-    for a maximum of 4 hours; target total credit usage below $1
-  - Run the full pipeline on EC2: Binance producer, Kafka KRaft, PySpark,
-    self-managed PostgreSQL+TimescaleDB, dbt, Airflow standalone/LocalExecutor,
-    and the Gemini market summary stage
-  - Do NOT run pgAdmin, Kafdrop, or Grafana OSS on EC2; they are unnecessary
-    for the CV demo and consume RAM
-  - Do NOT use RDS: managed RDS PostgreSQL does not provide the required
-    TimescaleDB setup. Do not repeat the obsolete 12-month Free Tier rationale
-  - Do NOT use NAT Gateway, Load Balancer, Elastic IP, or any additional paid
-    compute service; use a public subnet with an Internet Gateway
-  - Security Group inbound rules: SSH 22 and Airflow 8080 from the student's
-    current public IP only. Never expose Kafka 9092 or PostgreSQL 5432 publicly
-  - Keep secrets in an EC2-local .env file with permission 600. Use an IAM
-    instance role for AWS access; never store AWS access keys in code or .env
-  - Migrate Parquet storage to a private S3 bucket with Block Public Access and
-    SSE-S3 enabled. Keep Spark checkpoints on EBS and never delete checkpoints
-    during application restart
-  - Avoid S3 small-file growth: compact and upload Parquet hourly, partitioned
-    by date/hour/symbol, targeting one closed data file per symbol per hour
-  - Use Grafana Cloud free tier for the CV dashboard. Connect it to the private
-    PostgreSQL datasource through Grafana Private Data Source Connect (PDC)
-    with a dedicated read-only database user; do not expose port 5432
-  - Import the existing dashboard, publish an externally shared dashboard URL,
-    and verify that Gold metrics and the latest AI summaries are visible
-  - Configure AWS Budgets actual and forecast alerts at $1 before EC2 launch.
-    Document that Budget alerts can be delayed and are not a hard spending cap
-  - Set EC2 instance-initiated shutdown behavior to Terminate and schedule an
-    OS shutdown timer for 4 hours as a safety net
+Day 5 — Azure Ephemeral CV Demo ($200 credit, 30-day window)
+  - Account context: Azure Free Account provides $200 credit for the first
+    30 days. Use the credit window only; do not upgrade to Pay-as-you-go for
+    this portfolio demo
+  - Before launching anything, verify remaining credit and expiration date in
+    Azure Cost Management. Credit is time-limited and does not make paid
+    resources free forever
+  - Deploy in Southeast Asia on ONE Standard_B2s VM (2 vCPU, 4GB RAM) for a
+    short demo session. Do NOT use B1s because 1GB RAM is insufficient for
+    Kafka + Spark + PostgreSQL + Airflow
+  - Run the full pipeline on the Azure VM: Binance producer, Kafka KRaft,
+    PySpark host process, self-managed PostgreSQL+TimescaleDB, dbt, Airflow
+    standalone/LocalExecutor, and the Gemini market summary stage
+  - Do NOT run pgAdmin, Kafdrop, or Grafana OSS on the Azure VM; they are not
+    needed for the CV demo and consume RAM
+  - Use Azure Blob Storage / ADLS Gen2 for Parquet output. Prefer
+    `abfss://raw-trades@<account>.dfs.core.windows.net/` with Managed
+    Identity; never commit storage keys
+  - Use a user-assigned Managed Identity with Storage Blob Data Contributor on
+    the storage account. Do not use committed access keys
+  - Network Security Group inbound rules: SSH 22 and Airflow 8080 from the
+    student's current public IP only. Never expose Kafka 9092 or PostgreSQL
+    5432 publicly
+  - Use Azure auto-shutdown as the safety net, set no later than 8 hours after
+    planned start. Auto-shutdown is a safety guard, not a substitute for manual
+    teardown
+  - Keep secrets in a VM-local .env file with permission 600. Do not paste
+    secrets into GitHub Actions inputs, Azure tags/descriptions, or committed
+    files
+  - Use Grafana Cloud free tier for the CV dashboard. If a temporary direct
+    PostgreSQL connection is needed, allowlist only official Grafana Cloud
+    egress CIDRs and remove the NSG rule during teardown
+  - GitHub Actions deploy workflow is workflow_dispatch only:
+    .github/workflows/deploy-azure.yml with input azure_vm_ip and secret
+    AZURE_SSH_KEY
   - Collect CV evidence in the same session: architecture screenshot, healthy
-    services, successful Airflow runs, S3 Parquet objects, Grafana Cloud public
-    dashboard, and AWS credit balance before/after. Redact secrets and account ID
+    services, successful Airflow runs, Azure Blob Parquet objects, Grafana
+    Cloud dashboard, and Azure Cost Management before/after screenshots.
+    Redact secrets and account/subscription IDs
   - Definition of Done:
     * Real Binance events flow through Kafka -> Spark -> TimescaleDB -> dbt Gold
-    * All four Airflow DAGs have a successful run on EC2
-    * Compacted Parquet files exist in S3 under date/hour/symbol partitions
-    * Grafana Cloud public dashboard shows Gold metrics and AI summaries
-    * Recorded credit usage remains below the $1 target
-    * All AWS workload resources are deleted within the same demo session
-  - Teardown immediately after collecting evidence: terminate EC2; delete EBS
-    volumes, snapshots/AMIs, S3 objects and bucket, dedicated IAM role/policy,
-    Security Group, key pair, public IP/EIP, and Grafana PDC credentials
-  - Final cost check: inspect EC2 Global View, S3, EBS volumes/snapshots, Elastic
-    IPs, and Billing to confirm that no chargeable resources remain
+    * All four Airflow DAGs have a successful run on Azure VM
+    * Parquet files exist in Azure Blob private container
+    * Grafana Cloud dashboard shows Gold metrics and AI summaries
+    * Azure resources are torn down immediately after evidence collection
+  - Teardown immediately after collecting evidence: delete VM, OS disk, public
+    IP, storage account/container, Managed Identity, NSG, VNet if demo-only,
+    SSH key resource, and resource group if it only contains demo resources
+  - Final cost check: inspect Azure All resources and Cost Management to
+    confirm no demo resources remain
 
 REQUIRED OUTPUT — update these files:
 
@@ -113,8 +113,8 @@ REQUIRED OUTPUT — update these files:
    - Add a "Roadmap" section with Day 1-5 above the existing 4-stage structure
    - Update "Project Structure" tree to include: dbt_project/, dags/ (Airflow),
      ai/ (LLM summary script)
-   - Update tech stack table to add: dbt, Airflow 2.9, Gemini API, AWS
-     (EC2/S3/Grafana Cloud)
+   - Update tech stack table to add: dbt, Airflow 2.9, Gemini API, Azure
+     (VM/Blob Storage/Managed Identity/Grafana Cloud)
    - Keep existing Stage 1-4 content intact — append, do not delete
 
 2. AGENTS.md
@@ -123,11 +123,14 @@ REQUIRED OUTPUT — update these files:
      * "dbt models read from TimescaleDB, never bypass Spark sink"
      * "AI summary stage uses GOOGLE GEMINI API (gemini-2.5-flash) ONLY —
        never Claude API or OpenAI API — this stage must remain $0 cost"
-     * "AWS migration: single EC2 instance for Kafka+Spark+PostgreSQL,
-       NOT RDS — RDS has no free TimescaleDB and bills after 12 months"
-     * "Before implementing any AWS step, confirm it fits within Free
-       Tier limits (EC2 750hrs/mo, S3 5GB, Grafana Cloud free tier) —
-       flag any paid-tier requirement before writing code"
+     * "Day 5 uses Azure Free Account ($200 credit, 30 days): one Azure VM
+       Standard_B2s for Kafka+Spark+PostgreSQL+Airflow, Blob Storage for
+       Parquet, Managed Identity for storage access, NSG/VNet for network
+       boundary"
+     * "Before implementing any Azure step, confirm it fits the 30-day
+       credit-backed demo plan; Standard_B2s uses credit and is NOT the
+       B1s free VM. Flag any paid-tier or Pay-as-you-go requirement before
+       writing code"
    - Update "Stage Status Tracker" table to add Day 1-5 rows
    - Update "Approved memory limits per service" table to add: 
      Airflow standalone (~300MB), dbt (~50MB run footprint)
@@ -146,7 +149,7 @@ REQUIRED OUTPUT — update these files:
    - docs/stages/STAGE_5_DBT_TRANSFORMATION.md
    - docs/stages/STAGE_6_AIRFLOW_ORCHESTRATION.md
    - docs/stages/STAGE_7_AI_MARKET_SUMMARY.md
-   - docs/stages/STAGE_8_AWS_DEMO_RUNBOOK.md
+   - docs/stages/STAGE_8_AZURE_DEMO_RUNBOOK.md
    Each file must follow the EXACT same structure as STAGE_1_INGESTION.md:
    Bối cảnh, Luồng dữ liệu, File liên quan, Cách chạy, Memory footprint,
    Lỗi thường gặp, Definition of Done, Skills học được — in Vietnamese,
@@ -160,16 +163,16 @@ REQUIRED OUTPUT — update these files:
 CONSTRAINTS:
 - Machine: Windows, Docker Desktop, RAM ~2GB free — flag any step 
   exceeding 300MB additional RAM
-- COST: This entire roadmap must cost $0. AI layer uses Gemini API free
+- COST: The local roadmap must stay $0. AI layer uses Gemini API free
   tier (NOT Claude/OpenAI — those are pay-per-token with no meaningful
-  free tier for sustained use). AWS layer uses Free Tier only, single
-  EC2 instance, no RDS, with a $1 AWS Budget alert as a safety net.
+  free tier for sustained use). Azure Day 5 uses the $200/30-day credit
+  for a short CV demo on one Standard_B2s VM, then tears down all resources.
 - Do not invent file paths that don't match my actual project structure — 
   read the real files first
 - Keep all existing content — this is an ADDITION, not a rewrite
 - Vietnamese for explanations in docs/stages files, English for code 
   comments, consistent with existing files
-- Do not start writing dbt/Airflow/AWS code yet — this task is 
+- Do not start writing dbt/Airflow/Azure code yet — this task is
   DOCUMENTATION ONLY, to plan before implementation
 ```
 
@@ -189,5 +192,5 @@ each file. I will review and approve each file individually.
 - Prompt yêu cầu Agent đọc file thật trước — tránh tình trạng bịa nội dung không khớp code
 - Tách riêng "documentation" và "implementation" — làm doc trước, code sau, để bạn review được lộ trình trước khi bắt tay code Day 2-5
 - **Đổi Claude API → Gemini API free tier**: dùng Gemini 2.5 Flash mỗi 30 phút (48 lần/ngày) và template fallback khi quota/API lỗi. CV vẫn ghi được "LLM-powered market intelligence" mà không để lỗi LLM làm crash DAG.
-- **AWS Day 5 tối ưu chi phí**: dùng một `m7i-flex.large` chạy full stack trong tối đa 4 giờ, không dùng RDS, thu bằng chứng CV rồi teardown toàn bộ. AWS Budget alert `$1` chỉ là cảnh báo, không phải hard spending cap.
+- **Azure Day 5 tối ưu chi phí**: dùng một `Standard_B2s` chạy full stack trong một phiên demo ngắn, dùng Azure Blob + Managed Identity, thu bằng chứng CV rồi teardown toàn bộ. Azure auto-shutdown và Cost Management chỉ là safety net/monitoring, không thay thế teardown.
 - Lấy Gemini API key tại **aistudio.google.com/apikey** — hoàn toàn miễn phí, không cần khai báo thẻ.

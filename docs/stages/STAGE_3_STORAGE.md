@@ -6,7 +6,7 @@ vào TimescaleDB để truy vấn và Parquet để lưu trữ file.
 ## 1. Công nghệ sử dụng
 
 - **PostgreSQL 16 + TimescaleDB**: lưu metrics time-series trong hypertable.
-- **Parquet**: lưu dữ liệu theo định dạng cột; local ở môi trường development và S3 ở Stage 8.
+- **Parquet**: lưu dữ liệu theo định dạng cột; local ở môi trường development và Azure Blob ở Stage 8.
 
 ## 2. Cấu trúc bảng (Hypertable)
 

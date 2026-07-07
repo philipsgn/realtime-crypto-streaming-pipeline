@@ -16,7 +16,7 @@ references:
   - ../../../docs/stages/STAGE_5_DBT_TRANSFORMATION.md
   - ../../../docs/stages/STAGE_6_AIRFLOW_ORCHESTRATION.md
   - ../../../docs/stages/STAGE_7_AI_MARKET_SUMMARY.md
-  - ../../../docs/stages/STAGE_8_AWS_DEMO_RUNBOOK.md
+  - ../../../docs/stages/STAGE_8_AZURE_DEMO_RUNBOOK.md
 ---
 
 # Skill: crypto-pipeline

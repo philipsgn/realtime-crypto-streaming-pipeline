@@ -22,7 +22,7 @@ The project now extends beyond the original four stages with a lightweight 5-day
 - **Day 2 — dbt Transformation Layer**: build Bronze → Silver → Gold models for clean metrics and daily rollups.
 - **Day 3 — Airflow Orchestration**: run dbt hourly and monitor Kafka lag with lightweight DAGs.
 - **Day 4 — AI Market Summary (Done)**: generate resilient 30-minute Gemini summaries with a transparent template fallback.
-- **Day 5 — AWS Migration**: run Kafka + Spark + PostgreSQL on one EC2 Free Tier instance, store Parquet in S3, and expose Grafana via Grafana Cloud.
+- **Day 5 — Azure Cloud Demo**: run Kafka + Spark + PostgreSQL + Airflow on one Azure VM Standard_B2s, store Parquet in Azure Blob, deploy by GitHub Actions, and expose evidence through Grafana Cloud.
 
 > This roadmap is intended for planning first. The implementation work for Days 2–5 will come after documentation review.
 
@@ -68,11 +68,11 @@ Spark Structured Streaming (PySpark)
 | Stream Processing | PySpark Structured Streaming | Window aggregation, VWAP computation |
 | Transformation | dbt Core | Bronze / Silver / Gold modeling |
 | Serving DB | PostgreSQL + TimescaleDB | Time-series optimized storage |
-| Historical Storage | Parquet (local / S3-ready) | Full raw event archive |
+| Historical Storage | Parquet (local / Azure Blob-ready) | Full raw event archive |
 | Orchestration | Apache Airflow 2.9 (standalone) | Run dbt and monitoring DAGs |
 | AI Layer | Google Gemini API (`gemini-2.5-flash`) | Generate free market summaries |
 | Dashboard | Grafana | Real-time visualization |
-| Cloud | AWS EC2 + S3 + Grafana Cloud | Cost-optimized deployment path |
+| Cloud | Azure VM + Blob Storage + Managed Identity + Grafana Cloud | Short-lived CV demo deployment |
 | Infra | Docker Compose | Single-command local deployment |
 | CI/CD | GitHub Actions | Linting, type check on push |
 
@@ -124,7 +124,7 @@ Build Grafana dashboard and deploy full stack.
 - Grafana provisioning: datasource + dashboard as code (JSON)
 - 4 panels: BTC live price, ETH VWAP, volume bar chart, trade count heatmap
 - Docker Compose: all services in one command
-- Oracle Cloud Free Tier deployment (public demo URL)
+- Azure short-lived production-grade demo deployment for CV evidence
 
 **Key learning:** Grafana provisioning, Docker Compose networking, cloud deploy
 
@@ -203,10 +203,13 @@ realtime-crypto-streaming-pipeline/
 │   └── spark_streaming.py       # PySpark Structured Streaming job
 ├── storage/
 │   └── postgres_sink.py         # TimescaleDB write helpers
-├── dbt/
+├── dbt_project/
 │   └── models/                   # Bronze / Silver / Gold transformation
 ├── dags/
-│   └── airflow/                  # Airflow DAGs for orchestration
+│   ├── dbt_hourly_dag.py         # dbt orchestration
+│   ├── kafka_lag_monitor_dag.py  # Kafka health checks
+│   ├── daily_summary_dag.py      # daily Gold report
+│   └── ai_market_summary_dag.py  # Gemini summaries
 ├── ai/
 │   └── gemini_summary.py         # Market summary script using Gemini API
 ├── dashboard/
@@ -254,13 +257,19 @@ POSTGRES_USER=pipeline
 POSTGRES_PASSWORD=changeme
 
 GRAFANA_ADMIN_PASSWORD=admin
+
+# Spark / Azure Blob optional Day 5 target
+PARQUET_OUTPUT=/tmp/crypto_raw
+# Preferred Azure path with Managed Identity:
+# PARQUET_OUTPUT=abfss://raw-trades@<account>.dfs.core.windows.net/
+AZURE_STORAGE_ACCOUNT=
 ```
 
 ---
 
 ## CV Description (copy-paste ready)
 
-> **Real-Time Crypto Streaming Pipeline** — Built an end-to-end streaming data pipeline ingesting live trade events from Binance WebSocket API into Apache Kafka (KRaft), processed with PySpark Structured Streaming (VWAP, volume aggregation on 1-min tumbling windows), stored in TimescaleDB, and visualized on auto-refreshing Grafana dashboards. Containerized with Docker Compose and deployed on Oracle Cloud.
+> **Real-Time Crypto Streaming Pipeline** — Built an end-to-end streaming data pipeline ingesting live trade events from Binance WebSocket API into Apache Kafka (KRaft), processed with PySpark Structured Streaming (VWAP, volume aggregation on 1-min tumbling windows), modeled with dbt Bronze/Silver/Gold on TimescaleDB, orchestrated with Airflow, summarized with Gemini, visualized in Grafana, and deployed as a short-lived production-grade Azure demo using VM, Blob Storage, Managed Identity and GitHub Actions.
 
 ---
 

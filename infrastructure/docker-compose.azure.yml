@@ -1,0 +1,105 @@
+services:
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:9093,CONTROLLER://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+    deploy:
+      resources:
+        limits:
+          memory: 400m
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9093", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_pipeline}
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../storage/init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pipeline} -d ${POSTGRES_DB:-crypto_pipeline}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow:
+    build:
+      context: ..
+      dockerfile: Dockerfile.airflow
+    image: crypto-airflow:2.9.0
+    container_name: airflow
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../.env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-pipeline}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-crypto_pipeline}
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      AIRFLOW__WEBSERVER__WORKERS: 1
+      AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: 600
+      AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: 600
+      AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 0
+      GUNICORN_CMD_ARGS: "--timeout 600 --graceful-timeout 600 --worker-tmp-dir /dev/shm"
+      PYTHONWARNINGS: "ignore"
+      AIRFLOW__CORE__PARALLELISM: 1
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9093"
+      POSTGRES_HOST: "postgres"
+      POSTGRES_PORT: "5432"
+      PYTHONPATH: "/opt/airflow"
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../ai:/opt/airflow/ai:ro
+      - ../dbt_project:/opt/airflow/dbt_project
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    command:
+      - bash
+      - -c
+      - rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: crypto_pipeline_azure_net
