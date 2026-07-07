@@ -8,6 +8,7 @@ dist/
 
 # Env
 .env
+.env.docker
 
 # Data
 /tmp/
@@ -21,6 +22,8 @@ checkpoint/
 # Docker volumes (local)
 postgres_data/
 grafana_data/
+spark_checkpoints/
+spark_raw/
 
 # Hadoop binaries
 .hadoop/

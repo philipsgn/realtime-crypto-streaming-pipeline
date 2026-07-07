@@ -31,8 +31,28 @@ if [ ! -f .env ]; then
   chmod 600 .env
 fi
 
+if [ ! -f .env.docker ]; then
+  {
+    echo "KAFKA_BOOTSTRAP_SERVERS=kafka:9093"
+    echo "KAFKA_TOPIC=crypto-trades"
+    echo "SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT"
+    echo "POSTGRES_HOST=postgres"
+    echo "POSTGRES_PORT=5432"
+    echo "POSTGRES_DB=crypto_pipeline"
+    echo "POSTGRES_USER=pipeline"
+    echo "POSTGRES_PASSWORD=changeme"
+    echo "GRAFANA_ADMIN_PASSWORD=admin"
+    echo "AIRFLOW_ADMIN_PASSWORD=admin"
+    echo "PARQUET_OUTPUT=/tmp/crypto_raw"
+    echo "CHECKPOINT_DIR=/tmp/checkpoint"
+    echo "RESET_SPARK_STATE=false"
+    echo "AZURE_STORAGE_ACCOUNT="
+    echo "GEMINI_API_KEY=your_key_here"
+  } > .env.docker
+  chmod 600 .env.docker
+fi
+
 echo "Bootstrap complete."
-echo "Next: edit $PROJECT_DIR/.env with real POSTGRES_PASSWORD, GEMINI_API_KEY,"
-echo "PARQUET_OUTPUT=wasbs://raw-trades@<account>.blob.core.windows.net/ and"
-echo "AZURE_STORAGE_ACCOUNT=<account>."
+echo "Next: edit $PROJECT_DIR/.env and $PROJECT_DIR/.env.docker with real"
+echo "POSTGRES_PASSWORD, GEMINI_API_KEY, PARQUET_OUTPUT and AZURE_STORAGE_ACCOUNT."
 echo "Log out and SSH again if Docker group permission is not active yet."

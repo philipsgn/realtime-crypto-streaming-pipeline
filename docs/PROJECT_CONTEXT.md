@@ -191,6 +191,17 @@ realtime-crypto-streaming-pipeline/
 | 4 | AI Market Summary | Gemini summary lưu vào `market_summaries` và hiển thị Grafana | STAGE_7_AI_MARKET_SUMMARY.md |
 | 5 | Azure Production-grade Demo | Full stack trên một VM Standard_B2s, Blob Storage + Grafana Cloud, thu bằng chứng rồi teardown | STAGE_8_AZURE_DEMO_RUNBOOK.md |
 
+### How to Run
+
+| Scenario | Command | `.env` file | Services started | Open in browser |
+|---|---|---|---|---|
+| Full pipeline local | `docker compose -f infrastructure/docker-compose.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
+| Debug single script | `python ingestion/binance_producer.py` | `.env` | Only the script | — |
+| Azure deploy | `docker compose -f infrastructure/docker-compose.azure.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
+
+> ⚠️ Không chạy `docker compose down -v` trừ khi muốn xóa toàn bộ TimescaleDB data
+> và Spark checkpoints. Dùng `docker compose down` để stop container nhưng giữ dữ liệu.
+
 ---
 
 ## 8. Cách AI nên trả lời câu hỏi về project này

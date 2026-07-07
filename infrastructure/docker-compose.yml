@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
 
   kafka:
@@ -24,20 +22,35 @@ services:
         limits:
           memory: 400m
     healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--list"]
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9093", "--list"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  producer:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.producer
+    image: crypto-producer:latest
+    container_name: producer
+    env_file:
+      - ../.env.docker
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
   postgres:
     image: timescale/timescaledb:latest-pg16
     container_name: postgres
     ports:
       - "5433:5432"
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-crypto_pipeline}
-      POSTGRES_USER: ${POSTGRES_USER:-pipeline}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    env_file:
+      - ../.env.docker
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../storage/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -46,7 +59,7 @@ services:
         limits:
           memory: 256m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pipeline} -d ${POSTGRES_DB:-crypto_pipeline}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,7 +70,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
@@ -113,10 +126,9 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - ../.env
+      - ../.env.docker
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pipeline:changeme@postgres:5432/crypto_pipeline
       AIRFLOW__CORE__FERNET_KEY: ''
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       _AIRFLOW_DB_MIGRATE: 'true'
@@ -142,6 +154,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -149,11 +163,38 @@ services:
     command:
       - bash
       - -c
-      - rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
+      - export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}" && rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
 
+  spark:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.spark
+    image: crypto-spark:3.5.0
+    container_name: spark
+    env_file:
+      - ../.env.docker
+    volumes:
+      - spark_checkpoints:/tmp/checkpoint
+      - spark_raw:/tmp/crypto_raw
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+# Named volumes persist data across container restarts.
+# WARNING: docker compose down -v will DELETE all TimescaleDB and Spark checkpoint data.
+# Never use the -v flag unless you intentionally want a full data reset.
 volumes:
   postgres_data:
   grafana_data:
+  spark_checkpoints:
+  spark_raw:
 
 networks:
   default:

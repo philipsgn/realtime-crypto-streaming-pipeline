@@ -132,6 +132,18 @@ Build Grafana dashboard and deploy full stack.
 
 ## Quickstart
 
+## How to Run
+
+| Scenario | Command | `.env` file | Services started | Open in browser |
+|---|---|---|---|---|
+| Full pipeline local | `docker compose -f infrastructure/docker-compose.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
+| Debug single script | `python ingestion/binance_producer.py` | `.env` | Only the script | — |
+| Azure deploy | `docker compose -f infrastructure/docker-compose.azure.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
+
+> ⚠️ NEVER run `docker compose down -v`.
+> The `-v` flag permanently deletes all TimescaleDB data and Spark checkpoints.
+> Always use `docker compose down` unless you intentionally want a full reset.
+
 ### Prerequisites
 - Docker Desktop (4GB RAM allocated)
 - Python 3.10+
@@ -143,21 +155,25 @@ Build Grafana dashboard and deploy full stack.
 git clone https://github.com/<your-username>/realtime-crypto-streaming-pipeline
 cd realtime-crypto-streaming-pipeline
 
-# 2. Copy env file
+# 2. Copy env files
 cp .env.example .env
+# Create .env.docker for containerized services and keep Docker DNS names:
+# KAFKA_BOOTSTRAP_SERVERS=kafka:9093
+# POSTGRES_HOST=postgres
+# POSTGRES_PORT=5432
 
-# 3. Start all services
-make up
+# 3. Start the full pipeline
+docker compose -f infrastructure/docker-compose.yml up -d --build
 
-# 4. Start Binance producer
-make producer
-
-# 5. Open Grafana
+# 4. Open Grafana
 open http://localhost:3000   # admin / admin
-# 6. Open observability UIs
+# 5. Open observability UIs
 # - Kafdrop (Kafka UI): http://localhost:9000
 # - pgAdmin (Postgres UI): http://localhost:5050  — default: admin@crypto.com / admin
 ```
+
+After `up -d`, the producer and Spark services start automatically. Manual `make producer`
+and `make spark-job` are now only for debugging outside Docker.
 
 ### How to run dbt
 
@@ -183,12 +199,12 @@ docker compose -f infrastructure/docker-compose.yml up -d airflow
 ### Make commands
 
 ```bash
-make up          # docker compose up (Kafka, Spark, PostgreSQL, Grafana)
+make up          # build/start full local Compose stack
 make down        # docker compose down
-make producer    # start Binance WebSocket producer
-make spark-job   # submit Spark Structured Streaming job
+make producer    # debug Binance WebSocket producer outside Docker
+make spark-job   # debug Spark Structured Streaming job outside Docker
 make logs        # tail all container logs
-make clean       # remove volumes and containers
+make clean       # stop containers without deleting named volumes
 ```
 
 ---

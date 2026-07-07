@@ -78,7 +78,12 @@ async def stream_to_kafka(producer: KafkaProducer) -> None:
 
                     event_count += 1
                     if event_count % 100 == 0:
-                        log.info(f"Published {event_count} events | latest: {event['symbol']} @ {event['price']}")
+                        log.info(
+                            "Published %s events | latest: %s @ %s",
+                            event_count,
+                            event["symbol"],
+                            event["price"],
+                        )
 
         except (websockets.exceptions.ConnectionClosed, TimeoutError, OSError) as e:
             log.warning(f"WebSocket disconnected: {e} — reconnecting in 3s...")

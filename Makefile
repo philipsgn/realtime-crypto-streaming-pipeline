@@ -1,7 +1,7 @@
 .PHONY: up down producer spark-job logs clean
 
 up:
-	docker compose -f infrastructure/docker-compose.yml up -d
+	docker compose -f infrastructure/docker-compose.yml up -d --build
 	@echo "Services started. Grafana: http://localhost:3000"
 
 down:
@@ -17,5 +17,6 @@ logs:
 	docker compose -f infrastructure/docker-compose.yml logs -f
 
 clean:
-	docker compose -f infrastructure/docker-compose.yml down -v
-	rm -rf /tmp/crypto_raw /tmp/checkpoint
+	docker compose -f infrastructure/docker-compose.yml down
+	@echo "Stopped containers. Named volumes are preserved."
+	@echo "Do not use docker compose down -v unless you intentionally want to delete data."

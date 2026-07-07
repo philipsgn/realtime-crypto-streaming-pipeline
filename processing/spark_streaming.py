@@ -9,6 +9,7 @@ windows of 1 minute and 5 minutes.
 import os
 import shutil
 
+from dotenv import load_dotenv
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -26,10 +27,12 @@ if os.name == "nt":
     os.environ.setdefault("HADOOP_HOME", hadoop_path)
     os.environ["PATH"] = os.path.join(hadoop_path, "bin") + os.pathsep + os.environ.get("PATH", "")
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+load_dotenv()
+
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5433")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "crypto_pipeline")
 POSTGRES_URL = f"jdbc:postgresql://{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 POSTGRES_PROPS = {
@@ -39,7 +42,8 @@ POSTGRES_PROPS = {
 }
 PARQUET_OUTPUT = os.getenv("PARQUET_OUTPUT", "/tmp/crypto_raw")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "")
-CHECKPOINT_ROOT = os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint")
+CHECKPOINT_ROOT = os.getenv("CHECKPOINT_DIR", os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint"))
+RESET_SPARK_STATE = os.getenv("RESET_SPARK_STATE", "false").lower() == "true"
 
 TRADE_SCHEMA = StructType(
     [
@@ -89,7 +93,7 @@ def apply_azure_storage_config(builder):
 
 def create_spark() -> SparkSession:
     """Create a Spark session configured for local or Azure Parquet output."""
-    if not is_azure_output(PARQUET_OUTPUT):
+    if RESET_SPARK_STATE and not is_azure_output(PARQUET_OUTPUT):
         shutil.rmtree(CHECKPOINT_ROOT, ignore_errors=True)
         shutil.rmtree(PARQUET_OUTPUT, ignore_errors=True)
         shutil.rmtree(r"C:\tmp\checkpoint", ignore_errors=True)

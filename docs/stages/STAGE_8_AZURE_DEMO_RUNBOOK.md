@@ -58,7 +58,7 @@ Nguyên tắc chi phí:
 | 3 | Launch VM + NSG + auto-shutdown | Chỉ SSH/Airflow từ IP hiện tại |
 | 4 | Bootstrap VM qua SSH | Docker, Git, Java 17 sẵn sàng |
 | 5 | Deploy bằng GitHub Actions `deploy-azure.yml` | Compose services healthy |
-| 6 | Chạy producer + Spark host process | Có real Binance data vào TimescaleDB và Blob |
+| 6 | Chạy producer + Spark container | Có real Binance data vào TimescaleDB và Blob |
 | 7 | Grafana Cloud + evidence collection | Dashboard có Gold data và AI summary |
 | 8 | Teardown | Azure All resources không còn resource demo |
 
@@ -215,27 +215,20 @@ docker compose -f infrastructure/docker-compose.azure.yml ps
 curl -f http://localhost:8080/health
 ```
 
-Spark chạy trên VM host, không chạy trong Compose, để giảm memory pressure và dễ cấu hình
-driver/JVM.
+Producer và Spark chạy trong Compose để Azure deploy chỉ cần một lệnh, có auto-restart và
+Spark checkpoint nằm trong named volume.
 
 ---
 
-## Phase 6 - Run producer + Spark
+## Phase 6 - Verify producer + Spark containers
 
 Trên VM:
 
 ```bash
 cd ~/realtime-crypto-streaming-pipeline
-source .venv/bin/activate
-python ingestion/binance_producer.py
-```
-
-Terminal khác:
-
-```bash
-cd ~/realtime-crypto-streaming-pipeline
-source .venv/bin/activate
-python processing/spark_streaming.py
+docker compose -f infrastructure/docker-compose.azure.yml ps
+docker compose -f infrastructure/docker-compose.azure.yml logs producer --tail 20
+docker compose -f infrastructure/docker-compose.azure.yml logs spark --tail 20
 ```
 
 Acceptance:

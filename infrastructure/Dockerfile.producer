@@ -1,0 +1,15 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    certifi \
+    kafka-python-ng==2.2.2 \
+    python-dotenv==1.0.0 \
+    websockets==12.0
+
+COPY ingestion/ ./ingestion/
+
+ENV PYTHONPATH=/app
+
+CMD ["python", "ingestion/binance_producer.py"]
