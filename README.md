@@ -1,6 +1,16 @@
 # Real-Time Crypto Streaming Pipeline
 
+![CI](https://github.com/philipsgn/realtime-crypto-streaming-pipeline/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![Kafka](https://img.shields.io/badge/Kafka-KRaft-231F20?logo=apachekafka&logoColor=white)
+![Spark](https://img.shields.io/badge/Spark-3.5-E25A1C?logo=apachespark&logoColor=white)
+![dbt](https://img.shields.io/badge/dbt-Bronze%2FSilver%2FGold-FF694B?logo=dbt&logoColor=white)
+![Airflow](https://img.shields.io/badge/Airflow-2.9-017CEE?logo=apacheairflow&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+
 > End-to-end streaming data engineering project — Binance WebSocket → Apache Kafka → Spark Structured Streaming → PostgreSQL → Grafana
+
+![Grafana Dashboard](docs/screenshots/grafana_dashboard_1.png)
 
 ![Architecture](docs/architecture.png)
 
@@ -78,6 +88,48 @@ Spark Structured Streaming (PySpark)
 
 ---
 
+## Screenshots
+
+### Grafana real-time dashboard
+
+![Grafana dashboard overview](docs/screenshots/grafana_dashboard_1.png)
+
+Real-time crypto dashboard after `docker compose -f infrastructure/docker-compose.yml up -d`.
+
+![Grafana price and VWAP panels](docs/screenshots/grafana_dashboard_2.png)
+
+Price, VWAP, volume, and trade-count panels backed by Gold serving tables.
+
+![Grafana AI market summary panel](docs/screenshots/grafana_dashboard_3.png)
+
+Gemini market summary panel with fallback-aware summary source.
+
+### Airflow DAGs
+
+![Airflow DAGs](docs/screenshots/airflow_dags.png)
+
+Airflow standalone UI showing dbt, monitoring, daily summary, and AI summary DAGs.
+
+### Kafka topic visibility
+
+![Kafdrop crypto-trades topic](docs/screenshots/kafdrop_topic.png)
+
+Kafdrop view of the real Binance `crypto-trades` Kafka topic.
+
+### TimescaleDB data
+
+![TimescaleDB data](docs/screenshots/timescaledb_data.png)
+
+TimescaleDB serving tables populated by the streaming pipeline and dbt models.
+
+### GitHub Actions CI
+
+![GitHub Actions CI](docs/screenshots/github_ci.png)
+
+GitHub Actions CI running repository quality checks.
+
+---
+
 ## Project Stages
 
 ### Stage 1 — Ingestion (Week 1)
@@ -136,9 +188,9 @@ Build Grafana dashboard and deploy full stack.
 
 | Scenario | Command | `.env` file | Services started | Open in browser |
 |---|---|---|---|---|
-| Full pipeline local | `docker compose -f infrastructure/docker-compose.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
+| Full pipeline local | `docker compose -f infrastructure/docker-compose.yml up -d` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
 | Debug single script | `python ingestion/binance_producer.py` | `.env` | Only the script | — |
-| Azure deploy | `docker compose -f infrastructure/docker-compose.azure.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
+| Azure deploy | `docker compose -f infrastructure/docker-compose.azure.yml up -d` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
 
 > ⚠️ NEVER run `docker compose down -v`.
 > The `-v` flag permanently deletes all TimescaleDB data and Spark checkpoints.
@@ -152,22 +204,28 @@ Build Grafana dashboard and deploy full stack.
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/<your-username>/realtime-crypto-streaming-pipeline
+git clone https://github.com/philipsgn/realtime-crypto-streaming-pipeline
 cd realtime-crypto-streaming-pipeline
 
 # 2. Copy env files
 cp .env.example .env
-# Create .env.docker for containerized services and keep Docker DNS names:
+cp .env.example .env.docker
+
+# Edit .env.docker for containerized services and keep Docker DNS names:
 # KAFKA_BOOTSTRAP_SERVERS=kafka:9093
 # POSTGRES_HOST=postgres
 # POSTGRES_PORT=5432
 
-# 3. Start the full pipeline
+# 3. Build and start the full pipeline on first run
 docker compose -f infrastructure/docker-compose.yml up -d --build
 
-# 4. Open Grafana
+# 4. Start the full pipeline on later runs
+docker compose -f infrastructure/docker-compose.yml up -d
+
+# 5. Open Grafana
 open http://localhost:3000   # admin / admin
-# 5. Open observability UIs
+
+# 6. Open observability UIs
 # - Kafdrop (Kafka UI): http://localhost:9000
 # - pgAdmin (Postgres UI): http://localhost:5050  — default: admin@crypto.com / admin
 ```
@@ -218,26 +276,48 @@ realtime-crypto-streaming-pipeline/
 ├── processing/
 │   └── spark_streaming.py       # PySpark Structured Streaming job
 ├── storage/
+│   ├── init.sql                 # TimescaleDB schema and hypertables
 │   └── postgres_sink.py         # TimescaleDB write helpers
 ├── dbt_project/
-│   └── models/                   # Bronze / Silver / Gold transformation
+│   ├── dbt_project.yml
+│   ├── profiles.yml
+│   └── models/
+│       ├── bronze/              # Source-aligned raw trade models
+│       ├── silver/              # Clean validated trade models
+│       └── gold/                # Serving tables for Grafana
 ├── dags/
 │   ├── dbt_hourly_dag.py         # dbt orchestration
 │   ├── kafka_lag_monitor_dag.py  # Kafka health checks
 │   ├── daily_summary_dag.py      # daily Gold report
-│   └── ai_market_summary_dag.py  # Gemini summaries
+│   ├── ai_market_summary_dag.py  # Gemini summaries
+│   └── utils/
+│       └── gold_queries.py       # Gold-layer SQL helpers
 ├── ai/
 │   └── gemini_summary.py         # Market summary script using Gemini API
 ├── dashboard/
 │   └── grafana/
-│       ├── datasource.yml        # Grafana datasource provisioning
-│       └── dashboard.json        # Grafana dashboard as code
+│       └── provisioning/
+│           ├── datasources/      # PostgreSQL datasource provisioning
+│           └── dashboards/       # Grafana dashboards as code
 ├── infrastructure/
-│   ├── docker-compose.yml        # Full stack orchestration
+│   ├── docker-compose.yml        # Full local stack orchestration
+│   ├── docker-compose.azure.yml  # Short-lived Azure demo stack
+│   ├── Dockerfile.airflow
+│   ├── Dockerfile.producer
+│   ├── Dockerfile.spark
+│   ├── azure-bootstrap.sh
 │   └── kafka-kraft.properties    # Kafka KRaft config (no Zookeeper)
 ├── docs/
-│   └── architecture.png
+│   ├── screenshots/
+│   ├── stages/
+│   └── PROJECT_CONTEXT.md
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── deploy-azure.yml
+├── AGENTS.md
 ├── .env.example
+├── .env.docker                  # Local Docker env; use kafka:9093 internally
 ├── .gitignore
 ├── requirements.txt
 ├── Makefile
@@ -285,7 +365,13 @@ AZURE_STORAGE_ACCOUNT=
 
 ## CV Description (copy-paste ready)
 
-> **Real-Time Crypto Streaming Pipeline** — Built an end-to-end streaming data pipeline ingesting live trade events from Binance WebSocket API into Apache Kafka (KRaft), processed with PySpark Structured Streaming (VWAP, volume aggregation on 1-min tumbling windows), modeled with dbt Bronze/Silver/Gold on TimescaleDB, orchestrated with Airflow, summarized with Gemini, visualized in Grafana, and deployed as a short-lived production-grade Azure demo using VM, Blob Storage, Managed Identity and GitHub Actions.
+> **Real-Time Crypto Streaming Pipeline**
+> Built end-to-end streaming pipeline: Binance WebSocket → Kafka (KRaft)
+> → PySpark Structured Streaming (VWAP, 1-min windows) → TimescaleDB
+> → dbt Medallion Architecture (Bronze/Silver/Gold) → Airflow (4 DAGs)
+> → Grafana dashboard. AI market summaries via Gemini API with graceful
+> fallback. Containerized with Docker Compose, CI with GitHub Actions.
+> Processes 30,000+ real trade events per session across BTC/ETH/SOL.
 
 ---
 
