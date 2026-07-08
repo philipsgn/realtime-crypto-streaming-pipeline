@@ -1,0 +1,556 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "candlestick",
+      "title": "BTC OHLC Candlestick",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "candles",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green" },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "candlestick": {
+          "colors": {
+            "down": "red",
+            "flat": "gray",
+            "up": "green"
+          }
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT window_start AS time, price_open AS open, GREATEST(price_open, price_close) AS high, LEAST(price_open, price_close) AS low, price_close AS close FROM trade_metrics_1min WHERE symbol = 'BTCUSDT' AND $__timeFilter(window_start) ORDER BY window_start ASC",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Price Change % per Minute — All Symbols",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisLabel": "%",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "scaleDistribution": { "type": "linear" },
+            "axisCenteredZero": true,
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": { "mode": "off" },
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green" },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT window_start AS time, price_change_pct AS value, symbol AS metric FROM trade_metrics_1min WHERE $__timeFilter(window_start) ORDER BY window_start ASC",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Buy Pressure % (>50% = bullish)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisLabel": "Buy pressure %",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 65,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "scaleDistribution": { "type": "linear" },
+            "axisCenteredZero": false,
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": { "mode": "line" },
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "mappings": [],
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red" },
+              { "color": "green", "value": 50 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "mean"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT window_start AS time, symbol AS metric, CASE WHEN total_volume > 0 THEN ROUND((buy_volume / total_volume * 100)::numeric, 1) ELSE 0 END AS value FROM trade_metrics_1min WHERE $__timeFilter(window_start) AND symbol IN ('BTCUSDT','ETHUSDT','SOLUSDT') ORDER BY window_start ASC",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "BTC VWAP vs Close Price",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisLabel": "USDT",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "scaleDistribution": { "type": "linear" },
+            "axisCenteredZero": false,
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": { "mode": "off" },
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green" },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT window_start AS time, vwap AS \"VWAP\", price_close AS \"Close Price\" FROM trade_metrics_1min WHERE symbol = 'BTCUSDT' AND $__timeFilter(window_start) ORDER BY window_start ASC",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "BTC",
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 16 },
+      "id": 5,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'BTCUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "ETH",
+      "gridPos": { "h": 4, "w": 3, "x": 3, "y": 16 },
+      "id": 6,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'ETHUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "SOL",
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 16 },
+      "id": 7,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'SOLUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "BNB",
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 16 },
+      "id": 8,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'BNBUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "XRP",
+      "gridPos": { "h": 4, "w": 3, "x": 12, "y": 16 },
+      "id": 9,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'XRPUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "ADA",
+      "gridPos": { "h": 4, "w": 3, "x": 15, "y": 16 },
+      "id": 10,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'ADAUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "DOGE",
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 16 },
+      "id": 11,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'DOGEUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "AVAX",
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 16 },
+      "id": 12,
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }, "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }, "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "${DS_TIMESCALEDB}" },
+          "rawSql": "SELECT ROUND(SUM(total_volume)::numeric, 2) AS value FROM trade_metrics_1min WHERE symbol = 'AVAXUSDT' AND $__timeFilter(window_start)",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Trade Count per Minute — All Symbols",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "id": 13,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisLabel": "trades / min",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "fillOpacity": 70,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green" }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT window_start AS time, trade_count AS value, symbol AS metric FROM trade_metrics_1min WHERE $__timeFilter(window_start) ORDER BY window_start ASC",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["crypto", "ohlc", "market-analysis"],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_TIMESCALEDB",
+        "type": "datasource",
+        "query": "postgres",
+        "refresh": 1,
+        "regex": "",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "current": {
+          "text": "TimescaleDB",
+          "value": "timescaledb"
+        }
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "OHLC & Market Analysis",
+  "uid": "crypto-ohlc-market-analysis",
+  "version": 1,
+  "weekStart": ""
+}
