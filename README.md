@@ -361,20 +361,6 @@ PARQUET_OUTPUT=/tmp/crypto_raw
 AZURE_STORAGE_ACCOUNT=
 ```
 
----
-
-## CV Description (copy-paste ready)
-
-> **Real-Time Crypto Streaming Pipeline**
-> Built end-to-end streaming pipeline: Binance WebSocket → Kafka (KRaft)
-> → PySpark Structured Streaming (VWAP, 1-min windows) → TimescaleDB
-> → dbt Medallion Architecture (Bronze/Silver/Gold) → Airflow (4 DAGs)
-> → Grafana dashboard. AI market summaries via Gemini API with graceful
-> fallback. Containerized with Docker Compose, CI with GitHub Actions.
-> Processes 30,000+ real trade events per session across BTC/ETH/SOL.
-
----
-
 ## Author
 
 **[Your Name]**  
