@@ -10,31 +10,33 @@
 
 > End-to-end streaming data engineering project — Binance WebSocket → Apache Kafka → Spark Structured Streaming → PostgreSQL → Grafana
 
-![Grafana Dashboard](docs/screenshots/grafana_dashboard_1.png)
+![Grafana Dashboard](docs/screenshots/grafana/crypto_market_overview_1.png)
 
 ![Architecture](docs/architecture.png)
 
 ## Overview
 
-This project builds a **production-grade real-time data pipeline** that ingests live cryptocurrency trade events from Binance, processes them using Apache Kafka and Spark Structured Streaming, stores aggregated metrics in PostgreSQL (TimescaleDB), and visualizes them on a live Grafana dashboard.
+This project builds a **production-oriented real-time data pipeline** that ingests live cryptocurrency trade events from Binance, processes them using Apache Kafka and Spark Structured Streaming, stores aggregated metrics in PostgreSQL (TimescaleDB), and visualizes them on live Grafana dashboards.
 
 **Domain:** Fintech / Market Data  
 **Data source:** Binance WebSocket API (real trades, no simulation)  
+**Coverage:** 8 cryptocurrency symbols (BTC/ETH/SOL/BNB/XRP/ADA/DOGE/AVAX)<br>
+**Runtime evidence:** 3M+ real trade events processed<br>
 **Latency:** Sub-minute (window aggregation every 1 minute)
 
 ---
 
 ## Roadmap (5 Days)
 
-The project now extends beyond the original four stages with a lightweight 5-day roadmap for documentation and planning:
+The project extends beyond the original four stages with a lightweight 5-day implementation roadmap:
 
-- **Day 1 — Observability UI (Done)**: add Kafdrop and pgAdmin so Kafka topics/messages and TimescaleDB data are visible in the browser.
-- **Day 2 — dbt Transformation Layer**: build Bronze → Silver → Gold models for clean metrics and daily rollups.
-- **Day 3 — Airflow Orchestration**: run dbt hourly and monitor Kafka lag with lightweight DAGs.
-- **Day 4 — AI Market Summary (Done)**: generate resilient 30-minute Gemini summaries with a transparent template fallback.
-- **Day 5 — Azure Cloud Demo**: run Kafka + Spark + PostgreSQL + Airflow on one Azure VM Standard_B2s, store Parquet in Azure Blob, deploy by GitHub Actions, and expose evidence through Grafana Cloud.
+- **Day 1 — Observability UI (✅ Done)**: Kafdrop and pgAdmin expose Kafka topics/messages and TimescaleDB data in the browser.
+- **Day 2 — dbt Transformation Layer (✅ Done)**: Bronze → Silver → Gold models provide validated metrics and daily rollups.
+- **Day 3 — Airflow Orchestration (✅ Done)**: Airflow runs dbt and monitors Gold data freshness and symbol coverage.
+- **Day 4 — AI Market Summary (✅ Done)**: resilient 30-minute Gemini summaries use a transparent template fallback.
+- **Day 5 — Azure Cloud Demo (Planned)**: run Kafka + Spark + PostgreSQL + Airflow on one Azure VM Standard_B2s, store Parquet in Azure Blob, deploy by GitHub Actions, and expose evidence through Grafana Cloud.
 
-> This roadmap is intended for planning first. The implementation work for Days 2–5 will come after documentation review.
+> Local Stages 1–7 are implemented and verified. The short-lived Azure CV demo remains a separate planned deployment.
 
 ---
 
@@ -42,7 +44,7 @@ The project now extends beyond the original four stages with a lightweight 5-day
 
 ```
 Binance WebSocket API
-        │  live trade events (8 USDT cryptocurrency symbols)
+        │  BTC / ETH / SOL / BNB / XRP / ADA / DOGE / AVAX (USDT pairs)
         ▼
 Apache Kafka (KRaft mode)
   topic: crypto-trades
@@ -84,7 +86,7 @@ Spark Structured Streaming (PySpark)
 | Dashboard | Grafana | Real-time visualization |
 | Cloud | Azure VM + Blob Storage + Managed Identity + Grafana Cloud | Short-lived CV demo deployment |
 | Infra | Docker Compose | Single-command local deployment |
-| CI/CD | GitHub Actions | Linting, type check on push |
+| CI/CD | GitHub Actions | Tests, linting, type checks, JSON validation, dbt compile |
 
 ---
 
@@ -110,7 +112,7 @@ Spark Structured Streaming (PySpark)
 
 ## Project Stages
 
-### Stage 1 — Ingestion (Week 1)
+### Stage 1 — Ingestion ✅ Done
 Connect to Binance WebSocket and publish raw trade events to Kafka.
 
 **What you build:**
@@ -122,11 +124,11 @@ Connect to Binance WebSocket and publish raw trade events to Kafka.
 
 ---
 
-### Stage 2 — Stream Processing (Week 2)
+### Stage 2 — Stream Processing ✅ Done
 Consume from Kafka with Spark Structured Streaming and compute metrics.
 
 **What you build:**
-- `processing/spark_streaming.py` — PySpark job with two output streams
+- `processing/spark_streaming.py` — PySpark job with raw Parquet and two metric streams
 - Tumbling window 1 min: `VWAP`, `total_volume`, `trade_count`, `price_open`, `price_close`
 - Tumbling window 5 min: same metrics for trend view
 - Watermark: 10 seconds (handle late data)
@@ -135,28 +137,42 @@ Consume from Kafka with Spark Structured Streaming and compute metrics.
 
 ---
 
-### Stage 3 — Storage (Week 3)
+### Stage 3 — Storage ✅ Done
 Sink processed data into PostgreSQL (TimescaleDB) and raw events to Parquet.
 
 **What you build:**
 - `storage/postgres_sink.py` — write aggregated metrics to hypertable
-- TimescaleDB hypertable on `trade_time` column
-- Parquet sink: partitioned by `date/symbol`
+- TimescaleDB hypertables keyed by `window_start`
+- Parquet sink partitioned by `symbol`
 
-**Key learning:** TimescaleDB hypertable, Spark JDBC sink, Parquet partitioning
+**Key learning:** TimescaleDB hypertables, idempotent PostgreSQL upserts, Parquet partitioning
 
 ---
 
-### Stage 4 — Dashboard & Deploy (Week 4)
-Build Grafana dashboard and deploy full stack.
+### Stage 4 — Dashboard ✅ Done
+Build provisioned Grafana dashboards for business metrics and pipeline health.
 
 **What you build:**
 - Grafana provisioning: datasource + dashboard as code (JSON)
-- 4 panels: BTC live price, ETH VWAP, volume bar chart, trade count heatmap
+- 3 dashboards: Market Overview, OHLC & Market Analysis, Pipeline Health
 - Docker Compose: all services in one command
-- Azure short-lived production-grade demo deployment for CV evidence
 
-**Key learning:** Grafana provisioning, Docker Compose networking, cloud deploy
+**Key learning:** Grafana provisioning, Gold-layer metrics, Docker Compose networking
+
+---
+
+### Stage 5 — dbt Transformation ✅ Done
+Transform Spark metrics through Bronze, Silver and Gold models with freshness and data-quality tests.
+
+---
+
+### Stage 6 — Airflow Orchestration ✅ Done
+Schedule dbt, daily summaries, Gemini generation and Gold freshness monitoring with Airflow.
+
+---
+
+### Stage 7 — Gemini AI Summary ✅ Done
+Generate Vietnamese market summaries with retryable Gemini calls and deterministic fallback templates.
 
 ---
 
@@ -265,7 +281,7 @@ realtime-crypto-streaming-pipeline/
 │       └── gold/                # Serving tables for Grafana
 ├── dags/
 │   ├── dbt_hourly_dag.py         # dbt orchestration
-│   ├── kafka_lag_monitor_dag.py  # Kafka health checks
+│   ├── kafka_lag_monitor_dag.py  # Gold freshness and symbol coverage
 │   ├── daily_summary_dag.py      # daily Gold report
 │   ├── ai_market_summary_dag.py  # Gemini summaries
 │   └── utils/
@@ -312,7 +328,7 @@ realtime-crypto-streaming-pipeline/
 | `total_volume` | Sum of trade quantities | 1 min, 5 min |
 | `trade_count` | Number of trades | 1 min |
 | `price_change_pct` | (close - open) / open × 100 | 1 min |
-| `buy_sell_ratio` | buyer-initiated / total trades | 5 min |
+| `buy_volume` | Buyer-initiated trade quantity | 1 min, 5 min |
 
 ---
 
@@ -322,7 +338,7 @@ realtime-crypto-streaming-pipeline/
 # .env.example
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_TOPIC=crypto-trades
-SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT
+SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT
 
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
@@ -341,9 +357,9 @@ AZURE_STORAGE_ACCOUNT=
 
 ## Author
 
-**[Your Name]**  
-Data Engineering Portfolio — Ho Chi Minh City  
-[LinkedIn](#) · [GitHub](#)
+**TanPhat**<br>
+Data Engineering Portfolio — Ho Chi Minh City<br>
+[GitHub](https://github.com/philipsgn)
 
 ---
 
