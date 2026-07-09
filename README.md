@@ -90,43 +90,21 @@ Spark Structured Streaming (PySpark)
 
 ## Screenshots
 
-### Grafana real-time dashboard
+### Dashboard 1 — Market Overview
+![Market Overview 1](docs/screenshots/grafana/crypto_market_overview_1.png)
+![Market Overview 2](docs/screenshots/grafana/crypto_market_overview_2.png)
 
-![Grafana dashboard overview](docs/screenshots/grafana_dashboard_1.png)
+### Dashboard 2 — OHLC & Market Analysis
+![OHLC 1](docs/screenshots/grafana/ohlc_market_1.png)
+![OHLC 2](docs/screenshots/grafana/ohlc_market_2.png)
+![OHLC 3](docs/screenshots/grafana/ohlc_market_3.png)
 
-Real-time crypto dashboard after `docker compose -f infrastructure/docker-compose.yml up -d`.
+### Dashboard 3 — Pipeline Health
+![Pipeline Health 1](docs/screenshots/grafana/pipeline_health_1.png)
+![Pipeline Health 2](docs/screenshots/grafana/pipeline_health_2.png)
 
-![Grafana price and VWAP panels](docs/screenshots/grafana_dashboard_2.png)
-
-Price, VWAP, volume, and trade-count panels backed by Gold serving tables.
-
-![Grafana AI market summary panel](docs/screenshots/grafana_dashboard_3.png)
-
-Gemini market summary panel with fallback-aware summary source.
-
-### Airflow DAGs
-
-![Airflow DAGs](docs/screenshots/airflow_dags.png)
-
-Airflow standalone UI showing dbt, monitoring, daily summary, and AI summary DAGs.
-
-### Kafka topic visibility
-
-![Kafdrop crypto-trades topic](docs/screenshots/kafdrop_topic.png)
-
-Kafdrop view of the real Binance `crypto-trades` Kafka topic.
-
-### TimescaleDB data
-
-![TimescaleDB data](docs/screenshots/timescaledb_data.png)
-
-TimescaleDB serving tables populated by the streaming pipeline and dbt models.
-
-### GitHub Actions CI
-
-![GitHub Actions CI](docs/screenshots/github_ci.png)
-
-GitHub Actions CI running repository quality checks.
+### AI Market Summary (Gemini)
+![AI Summary](docs/screenshots/grafana/ai_market_summary.png)
 
 ---
 
