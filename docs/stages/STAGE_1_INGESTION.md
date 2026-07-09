@@ -27,7 +27,7 @@ Binance Server
         │  KafkaProducer.send()
         ▼
 [Kafka Topic: crypto-trades]
-  3 partitions (BTCUSDT | ETHUSDT | SOLUSDT)
+  4 partitions with symbol-keyed routing for 8 configured symbols
   message key = symbol
 ```
 
@@ -163,7 +163,7 @@ docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh \
 - [ ] Producer chạy không crash trong 5 phút liên tục
 - [ ] `kafka-console-consumer` thấy JSON events chảy vào
 - [ ] Log hiện `Published 1000 events` mà không có ERROR
-- [ ] `kafka-topics.sh --describe` thấy topic `crypto-trades` có 3 partitions
+- [ ] `kafka-topics.sh --describe` thấy topic `crypto-trades` có 4 partitions
 
 ---
 

@@ -5,9 +5,11 @@ Binance WebSocket -> Apache Kafka producer
 
 import asyncio
 import json
-import os
 import logging
+import os
 import ssl
+from typing import Any
+
 import certifi
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -22,42 +24,61 @@ log = logging.getLogger(__name__)
 
 # Config
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-KAFKA_TOPIC             = os.getenv("KAFKA_TOPIC", "crypto-trades")
-SYMBOLS                 = os.getenv("SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT").split(",")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
+KAFKA_RETRIES = int(os.getenv("KAFKA_PRODUCER_RETRIES", "5"))
+FLUSH_INTERVAL = int(os.getenv("KAFKA_PRODUCER_FLUSH_INTERVAL", "10000"))
+SYMBOLS = tuple(
+    symbol.strip().upper()
+    for symbol in os.getenv(
+        "SYMBOLS",
+        "BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT",
+    ).split(",")
+    if symbol.strip()
+)
 
-STREAM_NAMES   = "/".join([f"{s.lower()}@trade" for s in SYMBOLS])
+STREAM_NAMES = "/".join(f"{symbol.lower()}@trade" for symbol in SYMBOLS)
 BINANCE_WS_URL = f"wss://stream.binance.com:9443/stream?streams={STREAM_NAMES}"
 
 
 def create_producer() -> KafkaProducer:
+    """Create a reliable Kafka producer for real Binance trade events."""
     return KafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        acks="all",
+        retries=KAFKA_RETRIES,
+        max_in_flight_requests_per_connection=1,
         linger_ms=100,
         batch_size=16384,
         compression_type="gzip",
     )
 
 
-def parse_trade_event(raw: dict) -> dict:
+def parse_trade_event(raw: dict[str, Any]) -> dict[str, Any]:
+    """Normalize one Binance combined-stream trade event."""
     data = raw.get("data", raw)
     return {
-        "symbol":         data["s"],
-        "price":          float(data["p"]),
-        "quantity":       float(data["q"]),
-        "trade_time":     data["T"],
+        "symbol": data["s"],
+        "price": float(data["p"]),
+        "quantity": float(data["q"]),
+        "trade_time": data["T"],
         "trade_time_iso": datetime.fromtimestamp(data["T"] / 1000, tz=timezone.utc).isoformat(),
         "is_buyer_maker": data["m"],
-        "trade_id":       data["t"],
+        "trade_id": data["t"],
     }
 
 
+def log_delivery_error(exc: BaseException) -> None:
+    """Log asynchronous Kafka delivery failures."""
+    log.error("Kafka delivery failed: %s", exc)
+
+
 async def stream_to_kafka(producer: KafkaProducer) -> None:
-    # SSL context dung certifi de tranh timeout/SSL error
+    """Continuously stream real Binance trades into Kafka."""
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    log.info(f"Connecting to Binance WebSocket | symbols: {SYMBOLS}")
-    log.info(f"URL: {BINANCE_WS_URL}")
+    log.info("Connecting to Binance WebSocket | symbols: %s", SYMBOLS)
+    log.info("URL: %s", BINANCE_WS_URL)
 
     while True:
         try:
@@ -72,11 +93,22 @@ async def stream_to_kafka(producer: KafkaProducer) -> None:
                 event_count = 0
 
                 async for message in ws:
-                    raw   = json.loads(message)
-                    event = parse_trade_event(raw)
-                    producer.send(KAFKA_TOPIC, value=event, key=event["symbol"].encode())
+                    try:
+                        raw = json.loads(message)
+                        event = parse_trade_event(raw)
+                    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                        log.warning("Discarded invalid Binance event: %s", exc)
+                        continue
+
+                    producer.send(
+                        KAFKA_TOPIC,
+                        value=event,
+                        key=event["symbol"].encode(),
+                    ).add_errback(log_delivery_error)
 
                     event_count += 1
+                    if event_count % FLUSH_INTERVAL == 0:
+                        producer.flush(timeout=10)
                     if event_count % 100 == 0:
                         log.info(
                             "Published %s events | latest: %s @ %s",
@@ -86,16 +118,20 @@ async def stream_to_kafka(producer: KafkaProducer) -> None:
                         )
 
         except (websockets.exceptions.ConnectionClosed, TimeoutError, OSError) as e:
-            log.warning(f"WebSocket disconnected: {e} — reconnecting in 3s...")
+            log.warning("WebSocket disconnected: %s — reconnecting in 3s...", e)
             await asyncio.sleep(3)
         except Exception as e:
-            log.error(f"Unexpected error: {e} — reconnecting in 5s...")
+            log.exception("Unexpected producer error: %s — reconnecting in 5s...", e)
             await asyncio.sleep(5)
 
 
 def main() -> None:
+    """Run the Binance-to-Kafka producer until interrupted."""
+    if not SYMBOLS:
+        raise ValueError("SYMBOLS must contain at least one Binance symbol")
+
     producer = create_producer()
-    log.info(f"Kafka producer ready. Bootstrap: {KAFKA_BOOTSTRAP_SERVERS}")
+    log.info("Kafka producer ready. Bootstrap: %s", KAFKA_BOOTSTRAP_SERVERS)
     try:
         asyncio.run(stream_to_kafka(producer))
     except KeyboardInterrupt:

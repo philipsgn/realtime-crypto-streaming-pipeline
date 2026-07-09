@@ -42,7 +42,7 @@ The project now extends beyond the original four stages with a lightweight 5-day
 
 ```
 Binance WebSocket API
-        │  live trade events (BTC/USDT, ETH/USDT, SOL/USDT)
+        │  live trade events (8 USDT cryptocurrency symbols)
         ▼
 Apache Kafka (KRaft mode)
   topic: crypto-trades
@@ -136,7 +136,7 @@ GitHub Actions CI running repository quality checks.
 Connect to Binance WebSocket and publish raw trade events to Kafka.
 
 **What you build:**
-- `ingestion/binance_producer.py` — WebSocket client for 3 symbols
+- `ingestion/binance_producer.py` — WebSocket client for 8 symbols
 - Kafka topic `crypto-trades` with KRaft (no Zookeeper)
 - JSON schema: `symbol`, `price`, `quantity`, `trade_time`, `is_buyer_maker`
 

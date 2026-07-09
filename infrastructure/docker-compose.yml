@@ -27,6 +27,46 @@ services:
       timeout: 5s
       retries: 5
 
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_TOPIC: crypto-trades
+      KAFKA_TOPIC_PARTITIONS: "4"
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        topic="$${KAFKA_TOPIC}"
+        desired="$${KAFKA_TOPIC_PARTITIONS}"
+        current=$$(/opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9093 \
+          --describe \
+          --topic "$${topic}" 2>/dev/null \
+          | awk -F 'PartitionCount: ' 'NR == 1 {split($$2, a, "\t"); print a[1]}')
+        if [ -z "$${current}" ]; then
+          /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9093 \
+            --create \
+            --topic "$${topic}" \
+            --partitions "$${desired}" \
+            --replication-factor 1
+        elif [ "$${current}" -lt "$${desired}" ]; then
+          /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9093 \
+            --alter \
+            --topic "$${topic}" \
+            --partitions "$${desired}"
+        fi
+        /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9093 \
+          --describe \
+          --topic "$${topic}"
+
   producer:
     build:
       context: ..
@@ -36,8 +76,8 @@ services:
     env_file:
       - ../.env.docker
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     deploy:
       resources:
@@ -177,8 +217,8 @@ services:
       - spark_checkpoints:/tmp/checkpoint
       - spark_raw:/tmp/crypto_raw
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     restart: unless-stopped

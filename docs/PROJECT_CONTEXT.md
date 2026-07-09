@@ -73,13 +73,13 @@ CI/CD       : GitHub Actions (ruff lint, mypy type check)
 ```
 [Binance WebSocket API]
   wss://stream.binance.com:9443
-  Symbols: BTCUSDT, ETHUSDT, SOLUSDT
+  Symbols: BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, AVAXUSDT
   Event type: @trade (real-time trades)
         │
         ▼ JSON events, ~5-50 events/sec
 [Apache Kafka — KRaft mode]
   Topic: crypto-trades
-  Partitions: 3 (1 per symbol)
+  Partitions: 4 (symbol-keyed; ordering preserved per symbol)
   Retention: 24h
         │
         ▼ Kafka consumer
