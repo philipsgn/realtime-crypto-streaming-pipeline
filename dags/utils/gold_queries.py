@@ -14,7 +14,9 @@ def get_db_connection() -> connection:
     port = os.getenv("POSTGRES_PORT", "5433")
     db = os.getenv("POSTGRES_DB", "crypto_pipeline")
     user = os.getenv("POSTGRES_USER", "pipeline")
-    password = os.getenv("POSTGRES_PASSWORD", "changeme")
+    password = os.getenv("POSTGRES_PASSWORD")
+    if password is None:
+        raise ValueError("POSTGRES_PASSWORD env var is required, not set")
     
     log.info(f"Connecting to PostgreSQL at {host}:{port}/{db}")
     

@@ -344,9 +344,11 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=crypto_pipeline
 POSTGRES_USER=pipeline
-POSTGRES_PASSWORD=changeme
+POSTGRES_PASSWORD=change_me_before_running
 
-GRAFANA_ADMIN_PASSWORD=admin
+GRAFANA_ADMIN_PASSWORD=change_me_before_running
+GF_DATASOURCE_POSTGRES_PASSWORD=change_me_before_running
+AIRFLOW_ADMIN_PASSWORD=change_me_before_running
 
 # Spark / Azure Blob optional Day 5 target
 PARQUET_OUTPUT=/tmp/crypto_raw
@@ -366,7 +368,7 @@ Data Engineering Portfolio — Ho Chi Minh City<br>
 ## Gemini AI Market Summary Setup
 
 1. Open `https://aistudio.google.com/apikey` and create a Gemini API key.
-2. Add the key to the project `.env` file: `GEMINI_API_KEY=your_key_here`.
+2. Add the key to the project `.env` file: `GEMINI_API_KEY=<your_gemini_api_key>`.
 3. For an existing PostgreSQL volume, apply the new idempotent schema from PowerShell:
    `Get-Content storage/init.sql -Raw | docker exec -i postgres psql -U pipeline -d crypto_pipeline`.
 4. Rebuild and start Airflow: `docker compose -f infrastructure/docker-compose.yml up -d --build airflow`.

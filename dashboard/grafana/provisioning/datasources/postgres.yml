@@ -7,7 +7,7 @@ datasources:
     database: crypto_pipeline
     user: pipeline
     secureJsonData:
-      password: changeme
+      password: "${GF_DATASOURCE_POSTGRES_PASSWORD}"
     jsonData:
       sslmode: disable
       timescaledb: true

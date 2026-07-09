@@ -40,14 +40,17 @@ if [ ! -f .env.docker ]; then
     echo "POSTGRES_PORT=5432"
     echo "POSTGRES_DB=crypto_pipeline"
     echo "POSTGRES_USER=pipeline"
-    echo "POSTGRES_PASSWORD=changeme"
-    echo "GRAFANA_ADMIN_PASSWORD=admin"
-    echo "AIRFLOW_ADMIN_PASSWORD=admin"
+    echo "# Change this before starting services"
+    echo "POSTGRES_PASSWORD=CHANGE_ME"
+    echo "GRAFANA_ADMIN_PASSWORD=CHANGE_ME"
+    echo "GF_DATASOURCE_POSTGRES_PASSWORD=CHANGE_ME"
+    echo "PGADMIN_DEFAULT_PASSWORD=CHANGE_ME"
+    echo "AIRFLOW_ADMIN_PASSWORD=CHANGE_ME"
     echo "PARQUET_OUTPUT=/tmp/crypto_raw"
     echo "CHECKPOINT_DIR=/tmp/checkpoint"
     echo "RESET_SPARK_STATE=false"
     echo "AZURE_STORAGE_ACCOUNT="
-    echo "GEMINI_API_KEY=your_key_here"
+    echo "GEMINI_API_KEY="
   } > .env.docker
   chmod 600 .env.docker
 fi

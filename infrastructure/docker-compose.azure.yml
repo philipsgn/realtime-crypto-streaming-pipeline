@@ -80,7 +80,8 @@ services:
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: admin
-      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?AIRFLOW_ADMIN_PASSWORD is required}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
       AIRFLOW__WEBSERVER__WORKERS: 1
       AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: 600
       AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: 600
@@ -109,7 +110,7 @@ services:
     command:
       - bash
       - -c
-      - export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}" && rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
+      - rm -f /opt/airflow/airflow-webserver.pid && exec airflow standalone
 
   spark:
     build:

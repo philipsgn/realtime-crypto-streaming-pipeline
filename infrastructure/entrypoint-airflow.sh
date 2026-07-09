@@ -18,7 +18,7 @@ airflow db migrate
 echo "Creating admin user..."
 airflow users create \
   --username "${_AIRFLOW_WWW_USER_USERNAME:-admin}" \
-  --password "${_AIRFLOW_WWW_USER_PASSWORD:-admin}" \
+  --password "${_AIRFLOW_WWW_USER_PASSWORD:?_AIRFLOW_WWW_USER_PASSWORD is required}" \
   --firstname Admin \
   --lastname User \
   --role Admin \
