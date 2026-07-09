@@ -7,7 +7,15 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+              values:
+                - BTCUSDT
+                - ETHUSDT
+                - SOLUSDT
+                - BNBUSDT
+                - XRPUSDT
+                - ADAUSDT
+                - DOGEUSDT
+                - AVAXUSDT
       - name: vwap
         tests:
           - not_null
@@ -40,7 +48,18 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+              values:
+                - BTCUSDT
+                - ETHUSDT
+                - SOLUSDT
+                - BNBUSDT
+                - XRPUSDT
+                - ADAUSDT
+                - DOGEUSDT
+                - AVAXUSDT
       - name: quote_volume_usdt
+        tests:
+          - not_null
+      - name: buy_volume
         tests:
           - not_null

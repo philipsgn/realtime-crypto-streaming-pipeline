@@ -23,8 +23,9 @@
   "panels": [
     {
       "type": "stat",
-      "title": "Records Last 1 Min",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "title": "Active Symbols — Latest Window",
+      "description": "Symbols present in the latest completed Gold window. Healthy state is 8/8.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "id": 1,
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -37,8 +38,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red" },
-              { "color": "green", "value": 1 }
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 8 }
             ]
           },
           "unit": "short"
@@ -59,7 +61,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM trade_metrics_1min WHERE window_start >= NOW() - INTERVAL '1 minute' AND $__timeFilter(window_start)",
+          "rawSql": "SELECT COUNT(DISTINCT symbol) AS value FROM gold_minute_volume WHERE window_start = (SELECT MAX(window_start) FROM gold_minute_volume)",
           "format": "table",
           "rawQuery": true,
           "editorMode": "code"
@@ -68,20 +70,20 @@
     },
     {
       "type": "timeseries",
-      "title": "Pipeline Throughput (records/min)",
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "title": "Trade Throughput — Last 1 Hour",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
       "id": 2,
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "${DS_TIMESCALEDB}"
       },
-      "description": "Healthy pipeline shows consistent non-zero values. Gaps indicate Spark was down or stopped writing.",
+      "description": "Real Binance trade events processed per minute. Gaps indicate Spark stopped writing completed windows.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": {
             "axisPlacement": "auto",
-            "axisLabel": "records / min",
+            "axisLabel": "trades / min",
             "axisColorMode": "text",
             "axisBorderShow": false,
             "drawStyle": "line",
@@ -124,7 +126,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT date_trunc('minute', window_start) AS time, COUNT(*) AS value FROM trade_metrics_1min WHERE $__timeFilter(window_start) GROUP BY 1 ORDER BY 1 ASC",
+          "rawSql": "SELECT window_start AS time, SUM(trade_count) AS value FROM gold_minute_volume WHERE $__timeFilter(window_start) GROUP BY window_start ORDER BY window_start ASC",
           "format": "time_series",
           "rawQuery": true,
           "editorMode": "code"
@@ -133,8 +135,8 @@
     },
     {
       "type": "stat",
-      "title": "Seconds Since Last Record",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 4 },
+      "title": "Data Freshness — Last 1 Hour",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
       "id": 3,
       "description": "Most important health signal. Green means pipeline is actively writing; red means Spark stopped writing.",
       "datasource": {
@@ -171,7 +173,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(window_start))) AS value FROM trade_metrics_1min WHERE $__timeFilter(window_start)",
+          "rawSql": "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(window_start))) AS value FROM gold_minute_volume WHERE $__timeFilter(window_start)",
           "format": "table",
           "rawQuery": true,
           "editorMode": "code"
@@ -180,10 +182,10 @@
     },
     {
       "type": "stat",
-      "title": "Total Records in TimescaleDB",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+      "title": "Total Aggregation Windows — All Time",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "id": 5,
-      "description": "Use this panel for CV evidence screenshots.",
+      "description": "Exact count of one-minute symbol windows persisted since June 13, 2026. This is not an estimate of raw trades.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "${DS_TIMESCALEDB}"
@@ -216,7 +218,50 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM trade_metrics_1min WHERE $__timeFilter(window_start)",
+          "rawSql": "SELECT COUNT(*) AS value FROM gold_minute_volume",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total Trades — All Time",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 7,
+      "description": "Cumulative Binance trades processed across all 8 symbols. This KPI ignores the dashboard time picker.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_TIMESCALEDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_TIMESCALEDB}"
+          },
+          "rawSql": "SELECT COALESCE(SUM(trade_count), 0) AS value FROM gold_minute_volume",
           "format": "table",
           "rawQuery": true,
           "editorMode": "code"
@@ -225,10 +270,10 @@
     },
     {
       "type": "table",
-      "title": "Symbol Coverage — All 8 Symbols",
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "title": "Symbol Freshness — All 8 Symbols",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
       "id": 4,
-      "description": "Shows which symbols are actively being processed.",
+      "description": "Operational dropout detection. Red freshness above five minutes means a symbol stopped updating.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "${DS_TIMESCALEDB}"
@@ -247,7 +292,16 @@
             "steps": [{ "color": "green" }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "minutes_since_last"},
+            "properties": [
+              {"id": "unit", "value": "m"},
+              {"id": "custom.cellOptions", "value": {"type": "color-background"}},
+              {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 2}, {"color": "red", "value": 5}]}}
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,
@@ -266,7 +320,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT symbol, COUNT(*) AS total_records, MAX(window_start) AS last_seen, ROUND(AVG(trade_count)::numeric, 0) AS avg_trades_per_min, ROUND(AVG(total_volume)::numeric, 4) AS avg_volume_per_min FROM trade_metrics_1min WHERE $__timeFilter(window_start) GROUP BY symbol ORDER BY total_records DESC",
+          "rawSql": "SELECT symbol, COUNT(*) AS total_windows, MAX(window_start) AS last_seen, ROUND((EXTRACT(EPOCH FROM (NOW() - MAX(window_start))) / 60)::numeric, 1) AS minutes_since_last, ROUND(AVG(trade_count)::numeric, 0) AS avg_trades_per_min FROM gold_minute_volume GROUP BY symbol ORDER BY minutes_since_last ASC",
           "format": "table",
           "rawQuery": true,
           "editorMode": "code"
@@ -274,9 +328,10 @@
       ]
     },
     {
-      "type": "barchart",
-      "title": "Hourly Ingestion Rate",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "type": "gauge",
+      "title": "Data Quality Score — Last 1 Hour",
+      "description": "Share of Gold windows with positive VWAP, volume and trade count.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
       "id": 6,
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -284,35 +339,30 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisPlacement": "auto",
-            "axisLabel": "records / hour",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "fillOpacity": 70,
-            "gradientMode": "none",
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": { "type": "linear" }
-          },
+          "color": {"mode": "thresholds"},
           "mappings": [],
           "min": 0,
+          "max": 100,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green" }]
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 95},
+              {"color": "green", "value": 99}
+            ]
           },
-          "unit": "short"
+          "unit": "percent"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
       "targets": [
         {
@@ -321,8 +371,8 @@
             "type": "grafana-postgresql-datasource",
             "uid": "${DS_TIMESCALEDB}"
           },
-          "rawSql": "SELECT date_trunc('hour', window_start) AS time, COUNT(*) AS value FROM trade_metrics_1min WHERE $__timeFilter(window_start) GROUP BY 1 ORDER BY 1 ASC",
-          "format": "time_series",
+          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE minute_vwap > 0 AND base_volume > 0 AND trade_count > 0) / NULLIF(COUNT(*), 0), 1) AS value FROM gold_minute_volume WHERE $__timeFilter(window_start)",
+          "format": "table",
           "rawQuery": true,
           "editorMode": "code"
         }
