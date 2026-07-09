@@ -129,11 +129,20 @@ def read_kafka_stream(spark: SparkSession) -> DataFrame:
 
 
 def parse_events(raw_stream: DataFrame) -> DataFrame:
-    """Deserialize Kafka JSON bytes into a typed trade event DataFrame."""
+    """Deserialize and validate Kafka JSON bytes into typed trade events."""
     return (
         raw_stream.select(F.from_json(F.col("value").cast("string"), TRADE_SCHEMA).alias("data"))
         .select("data.*")
         .withColumn("event_ts", (F.col("trade_time") / 1000).cast("timestamp"))
+        .filter(
+            F.col("price").isNotNull()
+            & (F.col("price") > 0)
+            & F.col("quantity").isNotNull()
+            & (F.col("quantity") > 0)
+            & F.col("symbol").isNotNull()
+            & F.col("event_ts").isNotNull()
+            & F.col("trade_id").isNotNull()
+        )
     )
 
 
@@ -155,8 +164,8 @@ def compute_window_metrics(
             (F.sum(F.col("price") * F.col("quantity")) / F.sum("quantity")).alias("vwap"),
             F.sum("quantity").alias("total_volume"),
             F.count("*").alias("trade_count"),
-            F.first("price").alias("price_open"),
-            F.last("price").alias("price_close"),
+            F.min_by("price", F.struct("event_ts", "trade_id")).alias("price_open"),
+            F.max_by("price", F.struct("event_ts", "trade_id")).alias("price_close"),
             F.sum(
                 F.when(~F.col("is_buyer_maker"), F.col("quantity")).otherwise(0)
             ).alias("buy_volume"),
