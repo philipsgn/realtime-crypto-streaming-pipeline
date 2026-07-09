@@ -11,6 +11,9 @@ import os
 import shutil
 from typing import Any
 
+import psycopg2
+from psycopg2 import sql
+from psycopg2.extensions import connection
 from dotenv import load_dotenv
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
@@ -43,20 +46,12 @@ KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
 KAFKA_MAX_OFFSETS_PER_TRIGGER = int(os.getenv("KAFKA_MAX_OFFSETS_PER_TRIGGER", "250000"))
 SPARK_DRIVER_MEMORY = os.getenv("SPARK_DRIVER_MEMORY", "512m")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "crypto_pipeline")
-POSTGRES_URL = f"jdbc:postgresql://{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-POSTGRES_PROPS = {
-    "user": os.getenv("POSTGRES_USER", "pipeline"),
-    "password": os.getenv("POSTGRES_PASSWORD", "changeme"),
-    "driver": "org.postgresql.Driver",
-}
 PARQUET_OUTPUT = os.getenv("PARQUET_OUTPUT", "/tmp/crypto_raw")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "")
 CHECKPOINT_ROOT = os.getenv("CHECKPOINT_DIR", os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint"))
 METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v2")
 RESET_SPARK_STATE = os.getenv("RESET_SPARK_STATE", "false").lower() == "true"
+METRIC_TABLES = frozenset({"trade_metrics_1min", "trade_metrics_5min"})
 
 TRADE_SCHEMA = StructType(
     [
@@ -111,10 +106,7 @@ def is_azure_output(path: str) -> bool:
 
 def get_spark_packages() -> str:
     """Return Spark package coordinates required by the active sinks."""
-    packages = [
-        "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0",
-        "org.postgresql:postgresql:42.7.3",
-    ]
+    packages = ["org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"]
     if is_azure_output(PARQUET_OUTPUT):
         packages.append("org.apache.hadoop:hadoop-azure:3.3.4")
     return ",".join(packages)
@@ -234,12 +226,70 @@ def compute_window_metrics(
     )
 
 
-def write_to_postgres(batch_df: DataFrame, batch_id: int, table: str) -> None:
-    """Append a non-empty streaming micro-batch to PostgreSQL."""
-    del batch_id
+def get_postgres_conn() -> connection:
+    """Create a PostgreSQL connection from environment configuration."""
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "postgres"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "crypto_pipeline"),
+        user=os.getenv("POSTGRES_USER", "pipeline"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+    )
+
+
+def write_to_postgres(batch_df: DataFrame, table: str) -> None:
+    """Upsert a non-empty aggregate micro-batch at its streaming window grain."""
+    if table not in METRIC_TABLES:
+        raise ValueError(f"Unsupported metrics table: {table}")
     if batch_df.isEmpty():
         return
-    batch_df.write.jdbc(url=POSTGRES_URL, table=table, mode="append", properties=POSTGRES_PROPS)
+
+    rows = batch_df.collect()
+    upsert_sql = sql.SQL(
+        """
+        INSERT INTO {}
+          (window_start, window_end, symbol, vwap, total_volume,
+           trade_count, price_open, price_close, buy_volume,
+           price_change_pct, window_minutes)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (window_start, symbol)
+        DO UPDATE SET
+          window_end       = EXCLUDED.window_end,
+          vwap             = EXCLUDED.vwap,
+          total_volume     = EXCLUDED.total_volume,
+          trade_count      = EXCLUDED.trade_count,
+          price_open       = EXCLUDED.price_open,
+          price_close      = EXCLUDED.price_close,
+          buy_volume       = EXCLUDED.buy_volume,
+          price_change_pct = EXCLUDED.price_change_pct,
+          window_minutes   = EXCLUDED.window_minutes
+        """
+    ).format(sql.Identifier(table))
+    values = [
+        (
+            row.window_start,
+            row.window_end,
+            row.symbol,
+            row.vwap,
+            row.total_volume,
+            row.trade_count,
+            row.price_open,
+            row.price_close,
+            row.buy_volume,
+            row.price_change_pct,
+            row.window_minutes,
+        )
+        for row in rows
+    ]
+
+    conn = get_postgres_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.executemany(upsert_sql, values)
+        conn.commit()
+        log.info("Upserted %d rows into %s", len(rows), table)
+    finally:
+        conn.close()
 
 
 def main() -> None:
@@ -264,7 +314,7 @@ def main() -> None:
     metrics_1min = compute_window_metrics(events, "1 minute")
     query_1min = (
         metrics_1min.writeStream.foreachBatch(
-            lambda df, bid: write_to_postgres(df, bid, "trade_metrics_1min")
+            lambda df, _bid: write_to_postgres(df, "trade_metrics_1min")
         )
         .queryName("metrics_1min")
         # v2 isolates the deterministic min_by/max_by state schema from legacy checkpoints.
@@ -279,7 +329,7 @@ def main() -> None:
     metrics_5min = compute_window_metrics(events, "5 minutes")
     query_5min = (
         metrics_5min.writeStream.foreachBatch(
-            lambda df, bid: write_to_postgres(df, bid, "trade_metrics_5min")
+            lambda df, _bid: write_to_postgres(df, "trade_metrics_5min")
         )
         .queryName("metrics_5min")
         .option(
