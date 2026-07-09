@@ -23,7 +23,7 @@
   "panels": [
     {
       "type": "stat",
-      "title": "Active Symbols — Latest Window",
+      "title": "Active Symbol Count — Latest Window",
       "description": "Symbols present in the latest completed Gold window. Healthy state is 8/8.",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "id": 1,
@@ -70,7 +70,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Trade Throughput — Last 1 Hour",
+      "title": "Trade Count Throughput — Last 1 Hour",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
       "id": 2,
       "datasource": {
@@ -182,7 +182,7 @@
     },
     {
       "type": "stat",
-      "title": "Total Aggregation Windows — All Time",
+      "title": "Aggregation Window Count — All Time",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "id": 5,
       "description": "Exact count of one-minute symbol windows persisted since June 13, 2026. This is not an estimate of raw trades.",
@@ -270,7 +270,7 @@
     },
     {
       "type": "table",
-      "title": "Symbol Freshness — All 8 Symbols",
+      "title": "Symbol Coverage & Freshness — All 8 Symbols",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
       "id": 4,
       "description": "Operational dropout detection. Red freshness above five minutes means a symbol stopped updating.",
@@ -329,7 +329,7 @@
     },
     {
       "type": "gauge",
-      "title": "Data Quality Score — Last 1 Hour",
+      "title": "Data Quality Score % — Last 1 Hour",
       "description": "Share of Gold windows with positive VWAP, volume and trade count.",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
       "id": 6,
