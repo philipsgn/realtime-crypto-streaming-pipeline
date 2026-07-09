@@ -7,6 +7,7 @@ SELECT
     symbol,
     SUM(total_volume) AS base_volume,
     SUM(vwap * total_volume) AS quote_volume_usdt,
+    SUM(vwap * buy_volume) AS buy_quote_volume_usdt,
     SUM(vwap * total_volume) / NULLIF(SUM(total_volume), 0) AS minute_vwap,
     SUM(trade_count) AS trade_count,
     MAX(price_open) AS price_open,
