@@ -23,6 +23,35 @@ SELECT create_hypertable('trade_metrics_5min', 'window_start', if_not_exists => 
 CREATE INDEX IF NOT EXISTS idx_1min_symbol ON trade_metrics_1min (symbol, window_start DESC);
 CREATE INDEX IF NOT EXISTS idx_5min_symbol ON trade_metrics_5min (symbol, window_start DESC);
 
+-- Unique constraints prevent duplicate windows on Spark restart.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'uq_1min_window'
+          AND conrelid = 'trade_metrics_1min'::regclass
+    ) THEN
+        ALTER TABLE trade_metrics_1min
+            ADD CONSTRAINT uq_1min_window UNIQUE (window_start, symbol);
+    END IF;
+END
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'uq_5min_window'
+          AND conrelid = 'trade_metrics_5min'::regclass
+    ) THEN
+        ALTER TABLE trade_metrics_5min
+            ADD CONSTRAINT uq_5min_window UNIQUE (window_start, symbol);
+    END IF;
+END
+$$;
+
 -- Day 4: transparent AI and degraded-mode market summaries.
 DO $$
 BEGIN
