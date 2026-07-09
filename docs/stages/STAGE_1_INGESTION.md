@@ -1,6 +1,6 @@
 # Stage 1 — Ingestion
 
-> **Mục tiêu cuối tuần 1:** Binance WebSocket kết nối thành công, events BTC/ETH/SOL chảy liên tục vào Kafka topic `crypto-trades`. Dùng `kafka-console-consumer` verify thấy JSON.
+> **Mục tiêu cuối tuần 1:** Binance WebSocket kết nối thành công, events cho 8 symbols chảy liên tục vào Kafka topic `crypto-trades`. Dùng `kafka-console-consumer` verify thấy JSON.
 
 ---
 
@@ -117,7 +117,7 @@ make producer
 **Output mong đợi:**
 ```
 2024-06-10 07:33:20 [INFO] Kafka producer ready.
-2024-06-10 07:33:21 [INFO] Connecting to Binance WebSocket | symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+2024-06-10 07:33:21 [INFO] Connecting to Binance WebSocket | symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT']
 2024-06-10 07:33:21 [INFO] WebSocket connected. Streaming to Kafka...
 2024-06-10 07:33:22 [INFO] Published 100 events | latest: BTCUSDT @ 67432.5
 2024-06-10 07:33:24 [INFO] Published 200 events | latest: ETHUSDT @ 3521.2
@@ -159,11 +159,11 @@ docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh \
 
 ## Definition of Done — Stage 1 hoàn thành khi
 
-- [ ] `docker ps` thấy kafka container `healthy`
-- [ ] Producer chạy không crash trong 5 phút liên tục
-- [ ] `kafka-console-consumer` thấy JSON events chảy vào
-- [ ] Log hiện `Published 1000 events` mà không có ERROR
-- [ ] `kafka-topics.sh --describe` thấy topic `crypto-trades` có 4 partitions
+- ✅ `docker ps` thấy kafka container `healthy`
+- ✅ Producer chạy không crash trong 5 phút liên tục
+- ✅ `kafka-console-consumer` thấy JSON events chảy vào
+- ✅ Log hiện `Published 1000 events` mà không có ERROR
+- ✅ `kafka-topics.sh --describe` thấy topic `crypto-trades` có 4 partitions
 
 ---
 

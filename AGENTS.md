@@ -137,15 +137,14 @@ Update this section as you complete each stage:
 
 | Stage | Status | Completed |
 |---|---|---|
-| Day 1 — Observability UI | ✅ Completed | Docker UI visibility added |
-| Day 2 — dbt Transformation | ✅ Completed | Bronze/Silver/Gold models added |
-| Day 3 — Airflow Orchestration | ✅ Completed | DAGs added, Airflow containerized |
-| Day 4 — AI Market Summary | ✅ Completed | Resilient Gemini summaries and Grafana panel added |
-| Day 5 — Azure Cloud Demo | 🔲 Not started | — |
-| Stage 1 — Ingestion | 🔲 Not started | — |
-| Stage 2 — Processing | 🔲 Not started | — |
-| Stage 3 — Storage | 🔲 Not started | — |
-| Stage 4 — Dashboard | 🔲 Not started | — |
+| Stage 1 — Ingestion | ✅ Complete | 8 Binance symbols streaming to Kafka |
+| Stage 2 — Processing | ✅ Complete | Spark streaming memory optimized |
+| Stage 3 — Storage | ✅ Complete | TimescaleDB hypertables with idempotent upsert |
+| Stage 4 — Dashboard | ✅ Complete | 3 Grafana dashboards, 24 panels |
+| Stage 5 — dbt Transformation | ✅ Complete | 5 models, 29 tests |
+| Stage 6 — Airflow | ✅ Complete | 4 DAGs, freshness monitoring |
+| Stage 7 — AI Summary | ✅ Complete | Gemini + fallback template |
+| Stage 8 — Azure | ⬜ Not implemented | Deferred cloud demo |
 
 ---
 
@@ -161,7 +160,7 @@ A: No. Use `local[2]` mode — cluster mode requires separate worker nodes, too 
 A: Only for debugging. Final pipeline must use PySpark Structured Streaming for CV credibility.
 
 **Q: When should I move to cloud (Azure)?**
-A: Day 5 — run a short production-grade CV demo on Azure VM Standard_B2s using the
+A: Stage 8 — run a short production-oriented CV demo on Azure VM Standard_B2s using the
 $200/30-day credit, Blob Storage, Managed Identity, GitHub Actions, and teardown immediately
 after collecting evidence. Do not upgrade to Pay-as-you-go for this demo.
 

@@ -8,7 +8,7 @@
 
 Stage này giải quyết câu hỏi: *"Làm sao chạy pipeline một cách có trật tự, tự động và dễ theo dõi?"*
 
-Khi project có nhiều bước như dbt run, health check Kafka lag, báo cáo hàng ngày, việc chạy thủ công sẽ rất dễ sai. Airflow giúp định nghĩa workflows bằng DAG và chạy theo schedule.
+Khi project có nhiều bước như dbt run, Gold freshness monitoring, báo cáo hàng ngày, việc chạy thủ công sẽ rất dễ sai. Airflow giúp định nghĩa workflows bằng DAG và chạy theo schedule.
 
 Vì máy chỉ có khoảng 2GB RAM trống, stage này dùng **Airflow 2.9 standalone với
 LocalExecutor**, một webserver worker, parallelism `1` và giới hạn container `768m`.
@@ -24,7 +24,7 @@ Không dùng CeleryExecutor hoặc KubernetesExecutor.
         ▼
 [Airflow DAGs]
   dbt_hourly_dag          → dbt deps/run/test mỗi giờ
-  kafka_lag_monitor_dag   → check Kafka lag mỗi 5 phút
+  kafka_lag_monitor_dag   → check Gold freshness và symbol coverage mỗi 5 phút
   daily_summary_dag       → query Gold layer mỗi ngày
   ai_market_summary_dag   → Gemini/fallback mỗi 30 phút
         │
@@ -32,6 +32,10 @@ Không dùng CeleryExecutor hoặc KubernetesExecutor.
 [Logs + alerts + summaries]
   dễ theo dõi và debug
 ```
+
+The monitoring DAG checks pipeline health via `gold_minute_volume` freshness and symbol coverage. It raises
+`AirflowException` if no Gold data is written for 10+ minutes or fewer than 8 symbols are
+active in the last 10 minutes.
 
 ---
 
@@ -115,13 +119,13 @@ Với image hiện tại, dùng `airflow dags list-runs`, `airflow tasks states-
 
 ## Definition of Done — Stage 6 hoàn thành khi
 
-- [ ] Airflow UI mở được và thấy DAGs
-- [ ] Cả bốn DAG import không lỗi và xuất hiện trong UI
-- [ ] `dbt_hourly_dag` chạy `dbt deps/run/test` thành công
-- [ ] Kafka lag task raise khi broker lỗi và chỉ WARNING khi lag vượt threshold
-- [ ] Daily summary fail khi query lỗi, nhưng chỉ WARNING khi không có dữ liệu hôm qua
-- [ ] AI summary chạy 30 phút/lần và không crash khi Gemini hết quota
-- [ ] Có dashboard/log để debug khi job fail
+- ✅ Airflow UI mở được và thấy DAGs
+- ✅ Cả bốn DAG import không lỗi và xuất hiện trong UI
+- ✅ `dbt_hourly_dag` chạy `dbt deps/run/test` thành công
+- ✅ Freshness monitoring task raise khi Gold data stale 10+ phút hoặc thiếu symbol coverage
+- ✅ Daily summary fail khi query lỗi, nhưng chỉ WARNING khi không có dữ liệu hôm qua
+- ✅ AI summary chạy 30 phút/lần và không crash khi Gemini hết quota
+- ✅ Có dashboard/log để debug khi job fail
 
 ---
 

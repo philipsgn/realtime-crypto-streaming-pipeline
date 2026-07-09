@@ -61,7 +61,7 @@ pip install python-dotenv tenacity
 Trong `.env`:
 
 ```env
-GEMINI_API_KEY=your_free_api_key_here
+GEMINI_API_KEY=<your_gemini_api_key>
 ```
 
 > Không hardcode API key trong code. Luôn đọc từ `.env`.
@@ -108,12 +108,12 @@ python -m ai.gemini_summary
 
 ## Definition of Done — Stage 7 hoàn thành khi
 
-- [ ] Script chạy được mà không lỗi trong 15 phút liên tục
-- [ ] Summary được lưu vào bảng `market_summaries`
-- [ ] Grafana summary panel hiển thị summary mới nhất
-- [ ] Gemini quota/API failure chuyển sang `fallback_template` và không làm DAG crash
-- [ ] Gọi API dùng Gemini free tier và không cần thẻ tín dụng
-- [ ] Mô tả kết quả bằng ngôn ngữ tự nhiên, dễ đọc
+- ✅ Script chạy được mà không lỗi trong 15 phút liên tục
+- ✅ Summary được lưu vào bảng `market_summaries`
+- ✅ Grafana summary panel hiển thị summary mới nhất
+- ✅ Gemini quota/API failure chuyển sang `fallback_template` và không làm DAG crash
+- ✅ Gọi API dùng Gemini free tier và không cần thẻ tín dụng
+- ✅ Mô tả kết quả bằng ngôn ngữ tự nhiên, dễ đọc
 
 ---
 

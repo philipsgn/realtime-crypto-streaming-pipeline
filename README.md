@@ -12,8 +12,6 @@
 
 ![Grafana Dashboard](docs/screenshots/grafana/crypto_market_overview_1.png)
 
-![Architecture](docs/architecture.png)
-
 ## Overview
 
 This project builds a **production-oriented real-time data pipeline** that ingests live cryptocurrency trade events from Binance, processes them using Apache Kafka and Spark Structured Streaming, stores aggregated metrics in PostgreSQL (TimescaleDB), and visualizes them on live Grafana dashboards.
@@ -21,22 +19,22 @@ This project builds a **production-oriented real-time data pipeline** that inges
 **Domain:** Fintech / Market Data  
 **Data source:** Binance WebSocket API (real trades, no simulation)  
 **Coverage:** 8 cryptocurrency symbols (BTC/ETH/SOL/BNB/XRP/ADA/DOGE/AVAX)<br>
-**Runtime evidence:** 3M+ real trade events processed<br>
+**Runtime evidence:** 13.7M+ real trade events processed<br>
 **Latency:** Sub-minute (window aggregation every 1 minute)
 
 ---
 
-## Roadmap (5 Days)
+## Implemented Local Roadmap
 
-The project extends beyond the original four stages with a lightweight 5-day implementation roadmap:
+The local project extends beyond the original four stages with implemented orchestration,
+analytics and AI layers:
 
 - **Day 1 — Observability UI (✅ Done)**: Kafdrop and pgAdmin expose Kafka topics/messages and TimescaleDB data in the browser.
 - **Day 2 — dbt Transformation Layer (✅ Done)**: Bronze → Silver → Gold models provide validated metrics and daily rollups.
 - **Day 3 — Airflow Orchestration (✅ Done)**: Airflow runs dbt and monitors Gold data freshness and symbol coverage.
 - **Day 4 — AI Market Summary (✅ Done)**: resilient 30-minute Gemini summaries use a transparent template fallback.
-- **Day 5 — Azure Cloud Demo (Planned)**: run Kafka + Spark + PostgreSQL + Airflow on one Azure VM Standard_B2s, store Parquet in Azure Blob, deploy by GitHub Actions, and expose evidence through Grafana Cloud.
-
-> Local Stages 1–7 are implemented and verified. The short-lived Azure CV demo remains a separate planned deployment.
+> Local Stages 1–7 are implemented and verified. The short-lived Azure CV demo is deferred
+> and remains a separate planned deployment.
 
 ---
 
@@ -84,7 +82,7 @@ Spark Structured Streaming (PySpark)
 | Orchestration | Apache Airflow 2.9 (standalone) | Run dbt and monitoring DAGs |
 | AI Layer | Google Gemini API (`gemini-2.5-flash`) | Generate free market summaries |
 | Dashboard | Grafana | Real-time visualization |
-| Cloud | Azure VM + Blob Storage + Managed Identity + Grafana Cloud | Short-lived CV demo deployment |
+| Cloud | Azure VM + Blob Storage + Managed Identity + Grafana Cloud | Planned short-lived CV demo deployment |
 | Infra | Docker Compose | Single-command local deployment |
 | CI/CD | GitHub Actions | Tests, linting, type checks, JSON validation, dbt compile |
 
@@ -128,7 +126,7 @@ Connect to Binance WebSocket and publish raw trade events to Kafka.
 Consume from Kafka with Spark Structured Streaming and compute metrics.
 
 **What you build:**
-- `processing/spark_streaming.py` — PySpark job with raw Parquet and two metric streams
+- `processing/spark_streaming.py` — PySpark job with raw Parquet and memory-optimized metric streams
 - Tumbling window 1 min: `VWAP`, `total_volume`, `trade_count`, `price_open`, `price_close`
 - Tumbling window 5 min: same metrics for trend view
 - Watermark: 10 seconds (handle late data)
@@ -154,7 +152,7 @@ Build provisioned Grafana dashboards for business metrics and pipeline health.
 
 **What you build:**
 - Grafana provisioning: datasource + dashboard as code (JSON)
-- 3 dashboards: Market Overview, OHLC & Market Analysis, Pipeline Health
+- 3 dashboards: Market Overview, OHLC & Market Analysis, Pipeline Health with 24 panels total
 - Docker Compose: all services in one command
 
 **Key learning:** Grafana provisioning, Gold-layer metrics, Docker Compose networking
@@ -217,11 +215,11 @@ docker compose -f infrastructure/docker-compose.yml up -d --build
 docker compose -f infrastructure/docker-compose.yml up -d
 
 # 5. Open Grafana
-open http://localhost:3000   # admin / admin
+open http://localhost:3000   # username admin, password from GRAFANA_ADMIN_PASSWORD
 
 # 6. Open observability UIs
 # - Kafdrop (Kafka UI): http://localhost:9000
-# - pgAdmin (Postgres UI): http://localhost:5050  — default: admin@crypto.com / admin
+# - pgAdmin (Postgres UI): http://localhost:5050  — password from PGADMIN_DEFAULT_PASSWORD
 ```
 
 After `up -d`, the producer and Spark services start automatically. Manual `make producer`
@@ -246,7 +244,7 @@ To run the Airflow standalone container and view DAGs:
 docker compose -f infrastructure/docker-compose.yml up -d airflow
 ```
 - Access Airflow UI: http://localhost:8080
-- Credentials: `admin` / `admin`
+- Credentials: username `admin`, password from `AIRFLOW_ADMIN_PASSWORD`
 
 ### Make commands
 

@@ -1,9 +1,12 @@
-# Stage 8 - Azure Demo Runbook: Production-grade CV Demo
+# Stage 8 - Azure Demo Runbook: Production-oriented CV Demo
 
 > **Mục tiêu:** Deploy pipeline end-to-end lên Azure trong một phiên demo ngắn để lấy bằng
-> chứng CV, sau đó teardown ngay để kiểm soát chi phí. Đây là production-grade demo theo
+> chứng CV, sau đó teardown ngay để kiểm soát chi phí. Đây là production-oriented demo theo
 > nghĩa có cloud deploy, security boundary, CI/CD, monitoring và evidence rõ ràng; không phải
 > môi trường production 24/7 hay high availability.
+
+> **Status:** Deferred — project is complete for CV purposes without cloud deploy. Azure remains
+> planned evidence collection, not an implemented runtime environment.
 
 ---
 

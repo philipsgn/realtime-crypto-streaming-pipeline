@@ -41,8 +41,8 @@ ORDER BY window_start ASC
 
 ## 4. Definition of Done
 
-- [ ] Datasource PostgreSQL được provision và health check thành công.
-- [ ] Dashboard hiển thị dữ liệu Binance thật cho BTCUSDT, ETHUSDT và SOLUSDT.
-- [ ] Panel analytics truy vấn Gold models, không bypass Spark sink hoặc dbt serving layer.
-- [ ] AI summary panel hiển thị `source=gemini` hoặc `fallback_template` minh bạch.
-- [ ] Không có password hoặc token trong dashboard JSON và screenshot CV.
+- ✅ Datasource PostgreSQL được provision và health check thành công.
+- ✅ Dashboard hiển thị dữ liệu Binance thật cho 8 symbols.
+- ✅ Panel analytics truy vấn Gold models, không bypass Spark sink hoặc dbt serving layer.
+- ✅ AI summary panel hiển thị `source=gemini` hoặc `fallback_template` minh bạch.
+- ✅ Không có password hoặc token trong dashboard JSON và screenshot CV.

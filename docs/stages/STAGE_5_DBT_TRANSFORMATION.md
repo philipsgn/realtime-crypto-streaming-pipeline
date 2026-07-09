@@ -107,12 +107,12 @@ Khi chạy trong Airflow container, profile nhận `POSTGRES_HOST=postgres` và
 
 ## Definition of Done — Stage 5 hoàn thành khi
 
-- [ ] dbt project chạy thành công không lỗi
-- [ ] `dbt debug`, `dbt run` và `dbt test` đều pass
-- [ ] Có đủ `bronze_trades`, `silver_trades` và ba Gold models hiện tại
-- [ ] Gold models cung cấp hourly VWAP, daily summary và minute volume cho dashboard
-- [ ] Schema tests và singular tests đều pass
-- [ ] Có thể query kết quả bằng SQL rõ ràng và dễ hiểu
+- ✅ dbt project chạy thành công không lỗi
+- ✅ `dbt debug`, `dbt run` và `dbt test` đều pass
+- ✅ Có đủ `bronze_trades`, `silver_trades` và ba Gold models hiện tại
+- ✅ Gold models cung cấp hourly VWAP, daily summary và minute volume cho dashboard
+- ✅ Schema tests và singular tests đều pass
+- ✅ Có thể query kết quả bằng SQL rõ ràng và dễ hiểu
 
 ---
 

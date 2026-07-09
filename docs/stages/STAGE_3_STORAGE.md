@@ -38,26 +38,21 @@ SELECT create_hypertable(
 ## 3. Spark ghi dữ liệu như thế nào?
 
 `processing/spark_streaming.py` dùng `foreachBatch` để ghi từng micro-batch vào PostgreSQL
-qua JDBC ở chế độ append. Cấu hình kết nối phải đọc từ environment; không hardcode
-credential trong code.
+bằng idempotent upsert (`ON CONFLICT (window_start, symbol) DO UPDATE`). Cấu hình kết nối
+phải đọc từ environment; không hardcode credential trong code.
 
 ```python
-def write_to_postgres(batch_df: DataFrame, batch_id: int, table: str) -> None:
-    """Append one non-empty Spark micro-batch to PostgreSQL."""
+def write_to_postgres(batch_df: DataFrame, table: str) -> None:
+    """Upsert one non-empty Spark micro-batch to PostgreSQL."""
     if batch_df.isEmpty():
         return
-    batch_df.write.jdbc(
-        url=POSTGRES_URL,
-        table=table,
-        mode="append",
-        properties=POSTGRES_PROPS,
-    )
+    # INSERT ... ON CONFLICT (window_start, symbol) DO UPDATE
 ```
 
 ## 4. Definition of Done
 
-- [ ] Hai bảng metrics tồn tại và là TimescaleDB hypertable.
-- [ ] Spark ghi được micro-batch thật từ Binance vào cả window 1 phút và 5 phút.
-- [ ] Restart Spark không tạo dữ liệu trùng ngoài chiến lược checkpoint đã định nghĩa.
-- [ ] Parquet được ghi thành công vào output cấu hình bởi environment.
-- [ ] Credential database không xuất hiện trong source code hoặc Git history.
+- ✅ Hai bảng metrics tồn tại và là TimescaleDB hypertable.
+- ✅ Spark ghi được micro-batch thật từ Binance vào cả window 1 phút và 5 phút.
+- ✅ Restart Spark không tạo dữ liệu trùng ngoài chiến lược checkpoint đã định nghĩa.
+- ✅ Parquet được ghi thành công vào output cấu hình bởi environment.
+- ✅ Credential database không xuất hiện trong source code hoặc Git history.

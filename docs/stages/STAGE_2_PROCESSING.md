@@ -32,9 +32,8 @@ Kafka chỉ là buffer — nó lưu raw events nhưng không làm gì với chú
   groupBy(symbol, window("event_ts", "1 minute"))
   → vwap, total_volume, trade_count, price_open, price_close
         │
-        ├──▶ Console sink (tuần 2 — debug)
-        ├──▶ PostgreSQL sink via foreachBatch (tuần 3)
-        └──▶ Parquet sink (tuần 3)
+        ├──▶ PostgreSQL sink via idempotent foreachBatch upsert
+        └──▶ Parquet sink partitioned by symbol
 ```
 
 ---
@@ -124,6 +123,7 @@ Batch: 0
 |BTCUSDT |2024-06-10 07:33:00 |67421.3 |2.4521     |47                |-0.23     |
 |ETHUSDT |2024-06-10 07:33:00 |3518.7  |15.234     |31                |+0.11     |
 |SOLUSDT |2024-06-10 07:33:00 |142.3   |892.1      |28                |+0.45     |
+|BNBUSDT |2024-06-10 07:33:00 |612.1   |120.4      |19                |-0.08     |
 +--------+--------------------+--------+-----------+------------------+----------+
 ```
 
@@ -134,7 +134,7 @@ Batch: 0
 ```python
 SparkSession.builder
   .config("spark.driver.memory", "512m")        # Configurable by environment
-  .config("spark.sql.shuffle.partitions", "4")   # Mặc định 200 → quá nhiều cho máy này
+  .config("spark.sql.shuffle.partitions", "2")   # Mặc định 200 → quá nhiều cho máy này
   .master("local[2]")                            # Dùng 2 CPU cores, không tạo cluster
 ```
 
@@ -172,11 +172,11 @@ Lần đầu mất ~3-5 phút. Từ lần 2 trở đi dùng cache.
 
 ## Definition of Done — Stage 2 hoàn thành khi
 
-- [ ] Spark job chạy không crash trong 5 phút
-- [ ] Console output thấy batches với VWAP, volume mỗi ~30 giây
-- [ ] Có ít nhất 3 symbols (BTC, ETH, SOL) xuất hiện trong output
-- [ ] `docker stats` CPU/RAM vẫn ổn định (không tăng liên tục)
-- [ ] `price_change_pct` có cả giá trị dương và âm (chứng tỏ tính đúng)
+- ✅ Spark job chạy không crash trong 5 phút
+- ✅ Output/sink thấy batches với VWAP, volume mỗi ~30 giây
+- ✅ Có đủ 8 symbols xuất hiện trong output/sink
+- ✅ `docker stats` CPU/RAM vẫn ổn định (không tăng liên tục)
+- ✅ `price_change_pct` có cả giá trị dương và âm (chứng tỏ tính đúng)
 
 ---
 
