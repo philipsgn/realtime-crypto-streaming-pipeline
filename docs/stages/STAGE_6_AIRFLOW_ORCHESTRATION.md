@@ -67,6 +67,17 @@ docker exec airflow airflow dags list-import-errors
 docker exec airflow airflow dags list
 ```
 
+Correct way to check import errors from `docker exec` when the metadata DB connection must
+be explicit:
+
+```bash
+docker exec -e AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=\
+"postgresql+psycopg2://pipeline:${POSTGRES_PASSWORD}@postgres:5432/crypto_pipeline" \
+airflow airflow dags list-import-errors
+```
+
+Expected output: empty / no import errors.
+
 ### Bước 3 — Verify DAG chạy
 
 Truy cập:
