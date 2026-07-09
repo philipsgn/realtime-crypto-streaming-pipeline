@@ -1,69 +1,114 @@
 """
-Monitor Kafka consumer lag for Spark stream.
-Schedule: */5 * * * *
+Monitor pipeline health via Gold table data freshness and symbol coverage.
+
+Replaces the unreliable Kafka consumer group lag check.
+Schedule: every 5 minutes.
+
+Manual acceptance test:
+1. Run ``docker compose -f infrastructure/docker-compose.yml stop spark``.
+2. Wait at least 10 minutes.
+3. Trigger this DAG manually; the task must fail with ``AirflowException``.
+4. Run ``docker compose -f infrastructure/docker-compose.yml start spark``.
+5. Wait 5 minutes for Spark to write new records.
+6. Trigger this DAG again; the task must succeed.
 """
-import os
+
 import logging
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+import os
 from datetime import datetime, timedelta
-from kafka import KafkaAdminClient, KafkaConsumer
+
+import psycopg2
+from airflow import DAG
+from airflow.exceptions import AirflowException
+from airflow.operators.python import PythonOperator
+from psycopg2.extensions import connection
 
 log = logging.getLogger(__name__)
 
+FRESHNESS_WARN_SECONDS = 300
+FRESHNESS_ERROR_SECONDS = 600
+SYMBOL_COVERAGE_MIN = 8
+
+
+def get_postgres_conn() -> connection:
+    """Create a PostgreSQL connection from environment configuration."""
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "postgres"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "crypto_pipeline"),
+        user=os.getenv("POSTGRES_USER", "pipeline"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+    )
+
+
+def check_pipeline_health() -> None:
+    """Fail the task when Gold data is stale or recent symbol coverage drops."""
+    conn = get_postgres_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT EXTRACT(EPOCH FROM (NOW() - MAX(window_start)))
+                FROM gold_minute_volume
+                """
+            )
+            freshness_row = cur.fetchone()
+            seconds_stale = (
+                float(freshness_row[0])
+                if freshness_row and freshness_row[0] is not None
+                else 9999.0
+            )
+
+            cur.execute(
+                """
+                SELECT COUNT(DISTINCT symbol)
+                FROM gold_minute_volume
+                WHERE window_start >= NOW() - INTERVAL '10 minutes'
+                """
+            )
+            coverage_row = cur.fetchone()
+            active_symbols = int(coverage_row[0]) if coverage_row else 0
+
+        if seconds_stale >= FRESHNESS_ERROR_SECONDS:
+            raise AirflowException(
+                f"PIPELINE DOWN: no Gold data for {seconds_stale:.0f}s "
+                f"(threshold={FRESHNESS_ERROR_SECONDS}s)"
+            )
+        if active_symbols < SYMBOL_COVERAGE_MIN:
+            raise AirflowException(
+                f"SYMBOL DROPOUT: only {active_symbols}/{SYMBOL_COVERAGE_MIN} "
+                "symbols active in the last 10 minutes"
+            )
+        if seconds_stale >= FRESHNESS_WARN_SECONDS:
+            log.warning("Pipeline slow: %.0fs since last Gold record", seconds_stale)
+        else:
+            log.info(
+                "Pipeline healthy: %.0fs stale, %d/%d symbols active",
+                seconds_stale,
+                active_symbols,
+                SYMBOL_COVERAGE_MIN,
+            )
+    finally:
+        conn.close()
+
+
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2024, 1, 1),
-    'retries': 0,
+    "owner": "airflow",
+    "depends_on_past": False,
+    "start_date": datetime(2024, 1, 1),
+    "retries": 1,
+    "retry_delay": timedelta(minutes=1),
 }
 
-def check_kafka_lag():
-    """Check consumer group lag and log warning if > 1000."""
-    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    topic = "crypto-trades"
-    group_id = "spark-streaming-consumer"
-    
-    log.info(f"Connecting to Kafka AdminClient at {bootstrap_servers}")
-    
-    try:
-        admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
-        consumer = KafkaConsumer(bootstrap_servers=bootstrap_servers)
-        
-        group_offsets = admin.list_consumer_group_offsets(group_id)
-        
-        total_lag = 0
-        lag_per_partition = {}
-        
-        for tp, offset_meta in group_offsets.items():
-            if tp.topic == topic:
-                end_offsets = consumer.end_offsets([tp])
-                end_offset = end_offsets.get(tp, 0)
-                
-                lag = end_offset - offset_meta.offset
-                total_lag += lag
-                
-                if lag > 0:
-                    lag_per_partition[tp.partition] = lag
-                    
-        if total_lag > 1000:
-            log.warning(f"HIGH KAFKA LAG DETECTED: Total lag={total_lag}. Partitions behind: {lag_per_partition}")
-        else:
-            log.info(f"Kafka lag is normal: {total_lag}")
-            
-    except Exception:
-        log.exception("Error checking Kafka lag")
-        raise
 
 with DAG(
-    'kafka_lag_monitor_dag',
+    "kafka_lag_monitor_dag",
     default_args=default_args,
-    schedule_interval=timedelta(minutes=5),
+    schedule=timedelta(minutes=5),
     catchup=False,
-    tags=['monitoring'],
+    tags=["monitoring"],
 ) as dag:
-
-    check_lag_task = PythonOperator(
-        task_id='check_kafka_lag',
-        python_callable=check_kafka_lag,
+    check_pipeline_health_task = PythonOperator(
+        task_id="check_pipeline_health",
+        python_callable=check_pipeline_health,
     )
