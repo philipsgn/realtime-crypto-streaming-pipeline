@@ -9,6 +9,7 @@ windows of 1 minute and 5 minutes.
 import logging
 import os
 import shutil
+from datetime import datetime, timedelta
 from typing import Any
 
 import psycopg2
@@ -46,10 +47,20 @@ KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
 KAFKA_MAX_OFFSETS_PER_TRIGGER = int(os.getenv("KAFKA_MAX_OFFSETS_PER_TRIGGER", "250000"))
 SPARK_DRIVER_MEMORY = os.getenv("SPARK_DRIVER_MEMORY", "512m")
+SPARK_DRIVER_JAVA_OPTIONS = os.getenv(
+    "SPARK_DRIVER_JAVA_OPTIONS",
+    (
+        "-XX:+UseSerialGC "
+        "-XX:MaxMetaspaceSize=192m "
+        "-XX:ReservedCodeCacheSize=64m "
+        "-XX:MaxDirectMemorySize=96m "
+        "-Xss512k"
+    ),
+)
 PARQUET_OUTPUT = os.getenv("PARQUET_OUTPUT", "/tmp/crypto_raw")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "")
 CHECKPOINT_ROOT = os.getenv("CHECKPOINT_DIR", os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint"))
-METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v2")
+METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v4")
 RESET_SPARK_STATE = os.getenv("RESET_SPARK_STATE", "false").lower() == "true"
 METRIC_TABLES = frozenset({"trade_metrics_1min", "trade_metrics_5min"})
 
@@ -141,7 +152,9 @@ def create_spark() -> SparkSession:
         SparkSession.builder.appName("CryptoStreamingPipeline")
         .master("local[2]")
         .config("spark.driver.memory", SPARK_DRIVER_MEMORY)
-        .config("spark.sql.shuffle.partitions", "4")
+        .config("spark.driver.extraJavaOptions", SPARK_DRIVER_JAVA_OPTIONS)
+        .config("spark.memory.fraction", "0.4")
+        .config("spark.sql.shuffle.partitions", "2")
         .config("spark.jars.packages", get_spark_packages())
     )
 
@@ -238,7 +251,7 @@ def get_postgres_conn() -> connection:
 
 
 def write_to_postgres(batch_df: DataFrame, table: str) -> None:
-    """Upsert a non-empty aggregate micro-batch at its streaming window grain."""
+    """Upsert finalized metrics and derive completed 5-minute windows from 1-minute rows."""
     if table not in METRIC_TABLES:
         raise ValueError(f"Unsupported metrics table: {table}")
     if batch_df.isEmpty():
@@ -286,30 +299,96 @@ def write_to_postgres(batch_df: DataFrame, table: str) -> None:
     try:
         with conn.cursor() as cur:
             cur.executemany(upsert_sql, values)
+            refreshed_rows = 0
+            if table == "trade_metrics_1min":
+                bucket_starts = {
+                    row.window_start.replace(
+                        minute=(row.window_start.minute // 5) * 5,
+                        second=0,
+                        microsecond=0,
+                    )
+                    for row in rows
+                }
+                bucket_starts.update(
+                    bucket_start - timedelta(minutes=5)
+                    for bucket_start in tuple(bucket_starts)
+                )
+                refreshed_rows = refresh_five_minute_windows(cur, bucket_starts)
         conn.commit()
         log.info("Upserted %d rows into %s", len(rows), table)
+        if table == "trade_metrics_1min":
+            log.info("Refreshed %d completed 5-minute rows", refreshed_rows)
     finally:
         conn.close()
 
 
+def refresh_five_minute_windows(cur: Any, bucket_starts: set[datetime]) -> int:
+    """Recompute complete 5-minute rows from deterministic 1-minute metrics."""
+    refresh_sql = """
+        INSERT INTO trade_metrics_5min
+          (window_start, window_end, symbol, vwap, total_volume,
+           trade_count, price_open, price_close, buy_volume,
+           price_change_pct, window_minutes)
+        SELECT
+          %s::timestamptz AS window_start,
+          %s::timestamptz + INTERVAL '5 minutes' AS window_end,
+          symbol,
+          SUM(vwap * total_volume) / NULLIF(SUM(total_volume), 0) AS vwap,
+          SUM(total_volume) AS total_volume,
+          SUM(trade_count) AS trade_count,
+          (ARRAY_AGG(price_open ORDER BY window_start ASC))[1] AS price_open,
+          (ARRAY_AGG(price_close ORDER BY window_start DESC))[1] AS price_close,
+          SUM(buy_volume) AS buy_volume,
+          (
+            (
+              (ARRAY_AGG(price_close ORDER BY window_start DESC))[1]
+              - (ARRAY_AGG(price_open ORDER BY window_start ASC))[1]
+            )
+            / NULLIF((ARRAY_AGG(price_open ORDER BY window_start ASC))[1], 0)
+            * 100
+          )::double precision AS price_change_pct,
+          '5 minutes' AS window_minutes
+        FROM trade_metrics_1min
+        WHERE window_start >= %s::timestamptz
+          AND window_start < %s::timestamptz + INTERVAL '5 minutes'
+          AND NOW() >= %s::timestamptz + INTERVAL '5 minutes 10 seconds'
+        GROUP BY symbol
+        ON CONFLICT (window_start, symbol)
+        DO UPDATE SET
+          window_end       = EXCLUDED.window_end,
+          vwap             = EXCLUDED.vwap,
+          total_volume     = EXCLUDED.total_volume,
+          trade_count      = EXCLUDED.trade_count,
+          price_open       = EXCLUDED.price_open,
+          price_close      = EXCLUDED.price_close,
+          buy_volume       = EXCLUDED.buy_volume,
+          price_change_pct = EXCLUDED.price_change_pct,
+          window_minutes   = EXCLUDED.window_minutes
+    """
+    refreshed_rows = 0
+    for bucket_start in sorted(bucket_starts):
+        cur.execute(
+            refresh_sql,
+            (
+                bucket_start,
+                bucket_start,
+                bucket_start,
+                bucket_start,
+                bucket_start,
+            ),
+        )
+        refreshed_rows += cur.rowcount
+    return refreshed_rows
+
+
 def main() -> None:
-    """Start the streaming queries for raw Parquet and aggregated metrics."""
+    """Start one stateless Parquet query and one stateful metrics query."""
     spark = create_spark()
     spark.sparkContext.setLogLevel("WARN")
     spark.streams.addListener(ProgressLogger())
 
     raw = read_kafka_stream(spark)
     events = parse_events(raw)
-
-    raw_query = (
-        events.writeStream.format("parquet")
-        .queryName("raw_parquet")
-        .option("path", PARQUET_OUTPUT)
-        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/raw")
-        .partitionBy("symbol")
-        .trigger(processingTime="30 seconds")
-        .start()
-    )
 
     metrics_1min = compute_window_metrics(events, "1 minute")
     query_1min = (
@@ -326,21 +405,19 @@ def main() -> None:
         .start()
     )
 
-    metrics_5min = compute_window_metrics(events, "5 minutes")
-    query_5min = (
-        metrics_5min.writeStream.foreachBatch(
-            lambda df, _bid: write_to_postgres(df, "trade_metrics_5min")
-        )
-        .queryName("metrics_5min")
-        .option(
-            "checkpointLocation",
-            f"{CHECKPOINT_ROOT}/5min-{METRICS_CHECKPOINT_VERSION}",
-        )
-        .trigger(processingTime="60 seconds")
+    # Start the stateful query first so its v4 checkpoint captures two shuffle partitions.
+    # The legacy raw checkpoint records four partitions but has no aggregation state.
+    raw_query = (
+        events.writeStream.format("parquet")
+        .queryName("raw_parquet")
+        .option("path", PARQUET_OUTPUT)
+        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/raw")
+        .partitionBy("symbol")
+        .trigger(processingTime="30 seconds")
         .start()
     )
 
-    del raw_query, query_1min, query_5min
+    del raw_query, query_1min
     spark.streams.awaitAnyTermination()
 
 
