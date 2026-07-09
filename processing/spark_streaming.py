@@ -6,12 +6,15 @@ Reads crypto-trades topic, computes VWAP and volume metrics over tumbling
 windows of 1 minute and 5 minutes.
 """
 
+import logging
 import os
 import shutil
+from typing import Any
 
 from dotenv import load_dotenv
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.streaming import StreamingQueryListener
 from pyspark.sql.types import (
     BooleanType,
     DoubleType,
@@ -29,8 +32,17 @@ if os.name == "nt":
 
 load_dotenv()
 
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
+logging.getLogger("py4j").setLevel(logging.WARNING)
+log = logging.getLogger(__name__)
+
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
+KAFKA_MAX_OFFSETS_PER_TRIGGER = int(os.getenv("KAFKA_MAX_OFFSETS_PER_TRIGGER", "250000"))
+SPARK_DRIVER_MEMORY = os.getenv("SPARK_DRIVER_MEMORY", "512m")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "crypto_pipeline")
@@ -43,6 +55,7 @@ POSTGRES_PROPS = {
 PARQUET_OUTPUT = os.getenv("PARQUET_OUTPUT", "/tmp/crypto_raw")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "")
 CHECKPOINT_ROOT = os.getenv("CHECKPOINT_DIR", os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint"))
+METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v2")
 RESET_SPARK_STATE = os.getenv("RESET_SPARK_STATE", "false").lower() == "true"
 
 TRADE_SCHEMA = StructType(
@@ -56,6 +69,39 @@ TRADE_SCHEMA = StructType(
         StructField("trade_id", LongType(), True),
     ]
 )
+
+
+class ProgressLogger(StreamingQueryListener):
+    """Log lifecycle and throughput for every Structured Streaming query."""
+
+    def onQueryStarted(self, event: Any) -> None:
+        """Log query startup with its stable runtime identifier."""
+        log.info("Streaming query started: id=%s name=%s", event.id, event.name)
+
+    def onQueryProgress(self, event: Any) -> None:
+        """Log batch input volume and processing throughput."""
+        progress = event.progress
+        log.info(
+            "Streaming progress: query=%s batch=%s rows=%s rate=%.1f/s",
+            progress.name or progress.id,
+            progress.batchId,
+            progress.numInputRows,
+            progress.processedRowsPerSecond,
+        )
+
+    def onQueryIdle(self, event: Any) -> None:
+        """Ignore idle notifications to avoid noisy logs."""
+
+    def onQueryTerminated(self, event: Any) -> None:
+        """Log unexpected or graceful streaming query termination."""
+        if event.exception:
+            log.error(
+                "Streaming query terminated: id=%s exception=%s",
+                event.id,
+                event.exception,
+            )
+        else:
+            log.warning("Streaming query terminated: id=%s", event.id)
 
 
 def is_azure_output(path: str) -> bool:
@@ -102,7 +148,7 @@ def create_spark() -> SparkSession:
     builder = (
         SparkSession.builder.appName("CryptoStreamingPipeline")
         .master("local[2]")
-        .config("spark.driver.memory", "512m")
+        .config("spark.driver.memory", SPARK_DRIVER_MEMORY)
         .config("spark.sql.shuffle.partitions", "4")
         .config("spark.jars.packages", get_spark_packages())
     )
@@ -123,6 +169,9 @@ def read_kafka_stream(spark: SparkSession) -> DataFrame:
         .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)
         .option("subscribe", KAFKA_TOPIC)
         .option("startingOffsets", "latest")
+        .option("maxOffsetsPerTrigger", KAFKA_MAX_OFFSETS_PER_TRIGGER)
+        # KNOWN: offset gaps are acceptable for this restartable portfolio demo.
+        # Set failOnDataLoss=true for a production workload that must fail on missing offsets.
         .option("failOnDataLoss", "false")
         .load()
     )
@@ -197,12 +246,14 @@ def main() -> None:
     """Start the streaming queries for raw Parquet and aggregated metrics."""
     spark = create_spark()
     spark.sparkContext.setLogLevel("WARN")
+    spark.streams.addListener(ProgressLogger())
 
     raw = read_kafka_stream(spark)
     events = parse_events(raw)
 
     raw_query = (
         events.writeStream.format("parquet")
+        .queryName("raw_parquet")
         .option("path", PARQUET_OUTPUT)
         .option("checkpointLocation", f"{CHECKPOINT_ROOT}/raw")
         .partitionBy("symbol")
@@ -215,7 +266,12 @@ def main() -> None:
         metrics_1min.writeStream.foreachBatch(
             lambda df, bid: write_to_postgres(df, bid, "trade_metrics_1min")
         )
-        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/1min")
+        .queryName("metrics_1min")
+        # v2 isolates the deterministic min_by/max_by state schema from legacy checkpoints.
+        .option(
+            "checkpointLocation",
+            f"{CHECKPOINT_ROOT}/1min-{METRICS_CHECKPOINT_VERSION}",
+        )
         .trigger(processingTime="30 seconds")
         .start()
     )
@@ -225,7 +281,11 @@ def main() -> None:
         metrics_5min.writeStream.foreachBatch(
             lambda df, bid: write_to_postgres(df, bid, "trade_metrics_5min")
         )
-        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/5min")
+        .queryName("metrics_5min")
+        .option(
+            "checkpointLocation",
+            f"{CHECKPOINT_ROOT}/5min-{METRICS_CHECKPOINT_VERSION}",
+        )
         .trigger(processingTime="60 seconds")
         .start()
     )
@@ -236,3 +296,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# To verify after deploy:
+# docker stats spark --no-stream  -> target under 85%; investigate sustained excess
+# docker inspect spark --format '{{.RestartCount}}'  -> must be 0
+# docker compose logs spark | grep -i "error\|exception"  -> must be empty

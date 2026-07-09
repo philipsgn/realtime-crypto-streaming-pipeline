@@ -133,7 +133,7 @@ Batch: 0
 
 ```python
 SparkSession.builder
-  .config("spark.driver.memory", "512m")        # Giới hạn driver RAM
+  .config("spark.driver.memory", "512m")        # Configurable by environment
   .config("spark.sql.shuffle.partitions", "4")   # Mặc định 200 → quá nhiều cho máy này
   .master("local[2]")                            # Dùng 2 CPU cores, không tạo cluster
 ```

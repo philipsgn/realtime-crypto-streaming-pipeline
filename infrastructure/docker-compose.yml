@@ -216,6 +216,7 @@ services:
     volumes:
       - spark_checkpoints:/tmp/checkpoint
       - spark_raw:/tmp/crypto_raw
+      - spark_ivy:/root/.ivy2
     depends_on:
       kafka-init:
         condition: service_completed_successfully
@@ -235,6 +236,7 @@ volumes:
   grafana_data:
   spark_checkpoints:
   spark_raw:
+  spark_ivy:
 
 networks:
   default:
