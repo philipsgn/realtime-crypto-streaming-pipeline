@@ -111,11 +111,18 @@ def generate_market_summaries() -> None:
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     configured_symbols = {
-        symbol.strip() for symbol in os.getenv("SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT").split(",")
+        symbol.strip()
+        for symbol in os.getenv(
+            "SYMBOLS",
+            "BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT",
+        ).split(",")
     }
-    metrics = [
-        metric for metric in fetch_daily_summary() if metric["symbol"] in configured_symbols
-    ]
+    metrics_by_symbol: dict[str, dict[str, Any]] = {}
+    for metric in fetch_daily_summary():
+        symbol = str(metric["symbol"])
+        if symbol in configured_symbols and symbol not in metrics_by_symbol:
+            metrics_by_symbol[symbol] = metric
+    metrics = list(metrics_by_symbol.values())
 
     if not metrics:
         log.warning("No Gold-layer market data available for AI summary")
