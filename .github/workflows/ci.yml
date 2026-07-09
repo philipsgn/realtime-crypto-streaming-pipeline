@@ -25,3 +25,104 @@ jobs:
 
       - name: Type check (mypy)
         run: mypy ingestion/ processing/ storage/ --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
+
+  lint-extended:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install ruff + mypy
+        run: pip install ruff mypy
+
+      - name: Ruff — all source folders
+        run: ruff check ingestion/ processing/ storage/ dags/ ai/ tests/
+
+      - name: Mypy — core modules
+        run: |
+          mypy ingestion/ processing/ storage/ --ignore-missing-imports
+          mypy ai/ --ignore-missing-imports || true
+
+  validate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Grafana dashboard JSON
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+          import sys
+
+          files = glob.glob("dashboard/**/*.json", recursive=True)
+          errors = []
+          for file_path in files:
+              try:
+                  with open(file_path, encoding="utf-8") as dashboard_file:
+                      json.load(dashboard_file)
+                  print(f"OK: {file_path}")
+              except (OSError, json.JSONDecodeError) as exc:
+                  errors.append(f"{file_path}: {exc}")
+
+          if errors:
+              print("FAILED:", errors)
+              sys.exit(1)
+          print(f"All {len(files)} JSON files valid")
+          PY
+
+  dbt-compile:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_DB: crypto_pipeline
+          POSTGRES_USER: pipeline
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pipeline -d crypto_pipeline"
+          --health-interval 10s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dbt
+        run: pip install dbt-postgres
+
+      - name: dbt deps + compile
+        working-directory: dbt_project
+        env:
+          DBT_PROFILES_DIR: .
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: crypto_pipeline
+          POSTGRES_USER: pipeline
+          POSTGRES_PASSWORD: testpassword
+        run: |
+          dbt deps
+          dbt compile
