@@ -36,7 +36,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: pip install pytest python-dotenv tenacity psycopg2-binary kafka-python-ng certifi websockets
 
       - name: Run pytest
         run: pytest tests/ -v --tb=short
