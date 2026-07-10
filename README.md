@@ -307,7 +307,6 @@ realtime-crypto-streaming-pipeline/
 │   └── workflows/
 │       ├── ci.yml
 │       └── deploy-azure.yml
-├── AGENTS.md
 ├── .env.example
 ├── .env.docker                  # Local Docker env; use kafka:9093 internally
 ├── .gitignore
