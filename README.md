@@ -24,16 +24,15 @@ This project builds a **production-oriented real-time data pipeline** that inges
 
 ---
 
-## Implemented Local Roadmap
+## Implemented Capabilities
 
-The local project extends beyond the original four stages with implemented orchestration,
-analytics and AI layers:
+The local project includes orchestration, analytics, observability and AI layers:
 
-- **Day 1 — Observability UI (✅ Done)**: Kafdrop and pgAdmin expose Kafka topics/messages and TimescaleDB data in the browser.
-- **Day 2 — dbt Transformation Layer (✅ Done)**: Bronze → Silver → Gold models provide validated metrics and daily rollups.
-- **Day 3 — Airflow Orchestration (✅ Done)**: Airflow runs dbt and monitors Gold data freshness and symbol coverage.
-- **Day 4 — AI Market Summary (✅ Done)**: resilient 30-minute Gemini summaries use a transparent template fallback.
-> Local Stages 1–7 are implemented and verified. The short-lived Azure CV demo is deferred
+- **Observability UI**: Kafdrop and pgAdmin expose Kafka topics/messages and TimescaleDB data in the browser.
+- **dbt Transformation Layer**: Bronze → Silver → Gold models provide validated metrics and daily rollups.
+- **Airflow Orchestration**: Airflow runs dbt and monitors Gold data freshness and symbol coverage.
+- **AI Market Summary**: resilient 30-minute Gemini summaries use a transparent template fallback.
+> The local pipeline is implemented and verified. The short-lived Azure CV demo is deferred
 > and remains a separate planned deployment.
 
 ---
@@ -110,7 +109,7 @@ Spark Structured Streaming (PySpark)
 
 ## Project Stages
 
-### Stage 1 — Ingestion ✅ Done
+### Stage 1 — Ingestion
 Connect to Binance WebSocket and publish raw trade events to Kafka.
 
 **What you build:**
@@ -122,7 +121,7 @@ Connect to Binance WebSocket and publish raw trade events to Kafka.
 
 ---
 
-### Stage 2 — Stream Processing ✅ Done
+### Stage 2 — Stream Processing
 Consume from Kafka with Spark Structured Streaming and compute metrics.
 
 **What you build:**
@@ -135,7 +134,7 @@ Consume from Kafka with Spark Structured Streaming and compute metrics.
 
 ---
 
-### Stage 3 — Storage ✅ Done
+### Stage 3 — Storage
 Sink processed data into PostgreSQL (TimescaleDB) and raw events to Parquet.
 
 **What you build:**
@@ -147,7 +146,7 @@ Sink processed data into PostgreSQL (TimescaleDB) and raw events to Parquet.
 
 ---
 
-### Stage 4 — Dashboard ✅ Done
+### Stage 4 — Dashboard
 Build provisioned Grafana dashboards for business metrics and pipeline health.
 
 **What you build:**
@@ -159,17 +158,17 @@ Build provisioned Grafana dashboards for business metrics and pipeline health.
 
 ---
 
-### Stage 5 — dbt Transformation ✅ Done
+### Stage 5 — dbt Transformation
 Transform Spark metrics through Bronze, Silver and Gold models with freshness and data-quality tests.
 
 ---
 
-### Stage 6 — Airflow Orchestration ✅ Done
+### Stage 6 — Airflow Orchestration
 Schedule dbt, daily summaries, Gemini generation and Gold freshness monitoring with Airflow.
 
 ---
 
-### Stage 7 — Gemini AI Summary ✅ Done
+### Stage 7 — Gemini AI Summary
 Generate Vietnamese market summaries with retryable Gemini calls and deterministic fallback templates.
 
 ---
@@ -180,9 +179,9 @@ Generate Vietnamese market summaries with retryable Gemini calls and determinist
 
 | Scenario | Command | `.env` file | Services started | Open in browser |
 |---|---|---|---|---|
-| Full pipeline local | `docker compose -f infrastructure/docker-compose.yml up -d` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
+| Full pipeline local | `docker compose --env-file .\.env.docker -f infrastructure/docker-compose.yml up -d --build` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark, Grafana, Kafdrop, pgAdmin | `localhost:3000`, `localhost:9000`, `localhost:5050`, `localhost:8080` |
 | Debug single script | `python ingestion/binance_producer.py` | `.env` | Only the script | — |
-| Azure deploy | `docker compose -f infrastructure/docker-compose.azure.yml up -d` | `.env.docker` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
+| Azure deploy | `docker compose --env-file .env.azure -f infrastructure/docker-compose.azure.yml up -d --build` | `.env.azure` | Kafka, Postgres, Airflow, Producer, Spark | Grafana Cloud URL |
 
 > ⚠️ NEVER run `docker compose down -v`.
 > The `-v` flag permanently deletes all TimescaleDB data and Spark checkpoints.
@@ -347,7 +346,7 @@ GRAFANA_ADMIN_PASSWORD=change_me_before_running
 GF_DATASOURCE_POSTGRES_PASSWORD=change_me_before_running
 AIRFLOW_ADMIN_PASSWORD=change_me_before_running
 
-# Spark / Azure Blob optional Day 5 target
+# Spark / Azure Blob optional cloud target
 PARQUET_OUTPUT=/tmp/crypto_raw
 # Preferred Azure path with Managed Identity:
 # PARQUET_OUTPUT=abfss://raw-trades@<account>.dfs.core.windows.net/
