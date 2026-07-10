@@ -219,6 +219,10 @@ services:
     container_name: spark
     env_file:
       - ../.env.docker
+    environment:
+      SPARK_DRIVER_MEMORY: "480m"
+      SPARK_DRIVER_JAVA_OPTIONS: "-XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m -XX:MaxDirectMemorySize=64m -Xss512k"
+      SPARK_METRICS_CHECKPOINT_VERSION: "v5"
     volumes:
       - spark_checkpoints:/tmp/checkpoint
       - spark_raw:/tmp/crypto_raw

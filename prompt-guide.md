@@ -27,28 +27,28 @@ Thêm Kafdrop vào docker-compose — xem topic, message, partition trực quan
 Thêm pgAdmin — query TimescaleDB bằng UI, thấy data thật
 RAM dùng thêm ~200MB — vẫn an toàn
 
-Day 2 : 
+Day 2 :
 dbt Transformation Layer Medallion Architecture
 Bronze model — raw data từ TimescaleDB
 Silver model — clean + validate (loại bỏ outlier giá)
 Gold model — VWAP hourly, daily summary cho dashboard
 Bạn đã biết dbt từ project cũ → tốn ~3-4 tiếng
 
-Day 3 : 
+Day 3 :
 Airflow DAG Orchestration
 DAG 1: chạy dbt models mỗi giờ
 DAG 2: health check Kafka lag mỗi 5 phút → alert nếu lag > 1000
 DAG 3: daily report — query Gold table, gửi tóm tắt
 Dùng Airflow 2.9 standalone mode — nhẹ hơn full setup
 
-Day 4 : 
+Day 4 :
 AI Layer — LLM Market Summary Trending 2026
 Query Gold table mỗi 5 phút lấy VWAP, volume, price change
 Gọi Claude API → tóm tắt thị trường bằng tiếng Việt tự nhiên
 Lưu summary vào PostgreSQL table mới: market_summaries
 Hiển thị trong Grafana panel Text → tự refresh mỗi 5 phút
 
-Day 5 : 
+Day 5 :
 AWS Migration Cloud Deploy
 EC2 t2.micro (free) — chạy Kafka + Spark thay Docker local
 S3 bucket — lưu Parquet thay local files
@@ -60,3 +60,27 @@ docker compose -f infrastructure/docker-compose.yml up -d
 docker compose -f infrastructure/docker-compose.yml up -d postgres grafana
 docker compose -f infrastructure/docker-compose.yml ps
 docker logs grafana --tail 100
+
+# Giảm tải RAM
+Restart nhanh khi UI chết:
+docker compose -f infrastructure/docker-compose.yml restart airflow
+
+Giảm tải RAM — tắt service không cần khi dùng Airflow:
+docker compose -f infrastructure/docker-compose.yml stop pgadmin kafdrop
+
+Nếu lặp lại thường xuyên — có thể bump memory lên 896m trong docker-compose.yml (cần tắt bớt container khác trước).
+
+Lệnh test local
+docker compose -f infrastructure/docker-compose.yml up -d --build
+docker compose -f infrastructure/docker-compose.yml ps
+docker compose -f infrastructure/docker-compose.yml logs producer --tail 20
+docker compose -f infrastructure/docker-compose.yml logs spark --tail 20
+
+Fix vĩnh viễn: Luôn tắt bằng:
+docker compose -f infrastructure/docker-compose.yml down
+
+docker exec postgres psql -U pipeline -d crypto_pipeline -c "SELECT COUNT(*) AS total_records, MIN(window_start), MAX(window_start) FROM trade_metrics_1min;"
+
+docker compose -f infrastructure/docker-compose.yml stop spark
+docker compose -f infrastructure/docker-compose.yml run --rm -e RESET_SPARK_STATE=true spark
+docker compose -f infrastructure/docker-compose.yml up -d spark

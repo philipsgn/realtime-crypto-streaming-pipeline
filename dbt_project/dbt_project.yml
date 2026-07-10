@@ -10,10 +10,11 @@ test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
+packages-install-path: "dbt_packages_local"
 
 clean-targets:
   - "target"
-  - "dbt_packages"
+  - "dbt_packages_local"
 
 models:
   crypto_pipeline:

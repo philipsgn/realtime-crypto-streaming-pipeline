@@ -46,21 +46,21 @@ log = logging.getLogger(__name__)
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "crypto-trades")
 KAFKA_MAX_OFFSETS_PER_TRIGGER = int(os.getenv("KAFKA_MAX_OFFSETS_PER_TRIGGER", "250000"))
-SPARK_DRIVER_MEMORY = os.getenv("SPARK_DRIVER_MEMORY", "512m")
+SPARK_DRIVER_MEMORY = os.getenv("SPARK_DRIVER_MEMORY", "480m")
 SPARK_DRIVER_JAVA_OPTIONS = os.getenv(
     "SPARK_DRIVER_JAVA_OPTIONS",
     (
         "-XX:+UseSerialGC "
-        "-XX:MaxMetaspaceSize=192m "
-        "-XX:ReservedCodeCacheSize=64m "
-        "-XX:MaxDirectMemorySize=96m "
+        "-XX:MaxMetaspaceSize=160m "
+        "-XX:ReservedCodeCacheSize=48m "
+        "-XX:MaxDirectMemorySize=64m "
         "-Xss512k"
     ),
 )
 PARQUET_OUTPUT = os.getenv("PARQUET_OUTPUT", "/tmp/crypto_raw")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "")
 CHECKPOINT_ROOT = os.getenv("CHECKPOINT_DIR", os.getenv("SPARK_CHECKPOINT_ROOT", "/tmp/checkpoint"))
-METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v4")
+METRICS_CHECKPOINT_VERSION = os.getenv("SPARK_METRICS_CHECKPOINT_VERSION", "v5")
 RESET_SPARK_STATE = os.getenv("RESET_SPARK_STATE", "false").lower() == "true"
 METRIC_TABLES = frozenset({"trade_metrics_1min", "trade_metrics_5min"})
 
@@ -396,7 +396,7 @@ def main() -> None:
             lambda df, _bid: write_to_postgres(df, "trade_metrics_1min")
         )
         .queryName("metrics_1min")
-        # v2 isolates the deterministic min_by/max_by state schema from legacy checkpoints.
+        # v5 isolates the memory-tuned Spark config from any malformed legacy checkpoint logs.
         .option(
             "checkpointLocation",
             f"{CHECKPOINT_ROOT}/1min-{METRICS_CHECKPOINT_VERSION}",
@@ -405,13 +405,13 @@ def main() -> None:
         .start()
     )
 
-    # Start the stateful query first so its v4 checkpoint captures two shuffle partitions.
+    # Start the stateful query first so its checkpoint captures two shuffle partitions.
     # The legacy raw checkpoint records four partitions but has no aggregation state.
     raw_query = (
         events.writeStream.format("parquet")
         .queryName("raw_parquet")
         .option("path", PARQUET_OUTPUT)
-        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/raw")
+        .option("checkpointLocation", f"{CHECKPOINT_ROOT}/raw-{METRICS_CHECKPOINT_VERSION}")
         .partitionBy("symbol")
         .trigger(processingTime="30 seconds")
         .start()

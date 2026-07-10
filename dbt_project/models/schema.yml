@@ -22,7 +22,7 @@ models:
       with zero/null price, volume, or trade_count. Flags outliers
       where price moves >50% in a single minute (data error, not volatility).
     tests:
-      - dbt_utils.unique_combination_of_columns:
+      - unique_combination_of_columns:
           combination_of_columns:
             - window_start
             - symbol
@@ -49,37 +49,37 @@ models:
         description: "Volume-Weighted Average Price for this window"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: ">= 0"
       - name: total_volume
         description: "Sum of trade quantities (token units, not USD)"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "> 0"
       - name: trade_count
         description: "Number of individual trades in this window"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "> 0"
       - name: buy_volume
         description: "Buyer-initiated volume (is_buyer_maker = false)"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "<= total_volume"
       - name: price_open
         description: "First price in window (by event timestamp)"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "> 0"
       - name: price_close
         description: "Last price in window (by event timestamp)"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "> 0"
 
   - name: gold_hourly_vwap
@@ -131,12 +131,12 @@ models:
         description: "Notional USD trading volume = vwap * total_volume"
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "> 0"
       - name: buy_quote_volume_usdt
         description: "Buyer-initiated USD notional = vwap * buy_volume"
         tests:
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
               expression: "<= quote_volume_usdt"
       - name: buy_volume
         tests:

@@ -31,4 +31,10 @@ spark_raw/
 # dbt
 dbt_project/target/
 dbt_project/dbt_packages/
+dbt_project/dbt_packages_runtime/
+dbt_project/dbt_packages_local/
 dbt_project/logs/
+
+# Local prompt scratch files
+PROMPT_DAY5_COMPLETE.md
+prompt-guide.md
